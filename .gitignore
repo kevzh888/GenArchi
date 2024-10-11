@@ -1,4 +1,4 @@
-aws_credentials.txt
+aws_credentials.sh
 
 # Local .terraform directories
 **/.terraform/*
