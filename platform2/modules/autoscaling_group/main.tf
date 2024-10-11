@@ -36,7 +36,7 @@ resource "aws_launch_template" "template" {
   vpc_security_group_ids = [var.web-server-sg-id]
   description            = "Default free tier template"
   key_name               = aws_key_pair.kp.key_name
-  user_data = base64encode(file("./misc/user_data.sh"))
+  /*user_data = base64encode(file("./misc/user_data.sh"))*/
 }
 
 resource "aws_lb_target_group" "frontend_target_group" {
