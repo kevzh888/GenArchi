@@ -19,6 +19,7 @@ module "autoscaling_group" {
   vpc-id           = module.default_vpc.vpc-id
   subnet-id-list   = [module.subnets.subnet1_id, module.subnets.subnet2_id, module.subnets.subnet3_id]
 }
+
 module "frontend_alb" {
   source           = "./modules/alb"
   security-group   = module.web_server_sg.sg_id
