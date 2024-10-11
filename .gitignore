@@ -1,3 +1,5 @@
+aws_credentials.txt
+
 # Local .terraform directories
 **/.terraform/*
 
