@@ -9,8 +9,6 @@
 
 <img src="https://img.shields.io/badge/Ansible-000000?style=for-the-badge&logo=ansible&logoColor=white" />
 
-<img src="https://img.shields.io/badge/Shell_Script-121011?style=for-the-badge&logo=gnu-bash&logoColor=white" />
-
 ## Requirement 
 - Install terraform -> [How to install Terraform](https://developer.hashicorp.com/terraform/tutorials/aws-get-started/install-cli)
 - Install Ansible -> [How to install Ansible](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html) 
