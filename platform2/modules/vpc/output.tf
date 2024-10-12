@@ -1,6 +1,6 @@
 output "vpc-id" {
   description = "Default VPC id."
-  value       = aws_vpc.default_vpc.id
+  value       = aws_vpc.vpc.id
 }
 
 output "route-table-id" {
