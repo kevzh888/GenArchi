@@ -15,7 +15,7 @@ terraform {
     dynamodb_table = "terraform-state-lock-dynamo"
     key            = "state/terraform.tfstate"
     region         = "eu-west-3"
-  }
+  }*/
   required_version = ">= 1.2.0"
 }
 
