@@ -2,14 +2,14 @@ resource "aws_security_group" "web_sg" {
   vpc_id = var.vpc_id
 
   ingress {
-    from_port = 80
-    to_port = 80
-    protocol = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    from_port   = var.web_ingress_from_port
+    to_port     = var.web_ingress_to_port
+    protocol    = var.web_ingress_protocol
+    cidr_blocks = var.web_ingress_cidr_blocks
   }
 
   tags = {
-    Name = "web_sg"
+    Name = var.web_sg_name
   }
 }
 
@@ -17,14 +17,14 @@ resource "aws_security_group" "app_sg" {
   vpc_id = var.vpc_id
 
   ingress {
-    from_port = 80
-    to_port = 80
-    protocol = "tcp"
+    from_port       = var.app_ingress_from_port
+    to_port         = var.app_ingress_to_port
+    protocol        = var.app_ingress_protocol
     security_groups = [aws_security_group.web_sg.id]
   }
 
   tags = {
-    Name = "app_sg"
+    Name = var.app_sg_name
   }
 }
 
@@ -32,7 +32,6 @@ resource "aws_security_group" "db_sg" {
   vpc_id = var.vpc_id
 
   tags = {
-    Name = "db_sg"
+    Name = var.db_sg_name
   }
 }
-

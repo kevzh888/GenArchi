@@ -1,3 +1,4 @@
+# Variables générales
 variable "ubuntu-2204" {
   type        = string
   default     = "ami-00c71bd4d220aa22a"
@@ -10,6 +11,7 @@ variable "default-region" {
   description = "Default region used for creating our AWS ressources."
 }
 
+# Clés d'accès AWS
 variable "aws_access_key" {
   description = "AWS Access Key"
   type        = string
@@ -21,3 +23,4 @@ variable "aws_secret_key" {
   type        = string
   sensitive   = true
 }
+

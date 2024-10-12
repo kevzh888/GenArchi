@@ -1,9 +1,8 @@
-
 # Template de lancement pour les instances du tiers App
 resource "aws_launch_template" "app_launch_template" {
   name_prefix   = "app-"
-  image_id      = "ami-0c55b159cbfafe1f0"  # Remplacer par l'AMI appropriée
-  instance_type = "t2.micro"
+  image_id      = var.app_ami_id
+  instance_type = var.app_instance_type
 
   # Les tags pour identifier les instances
   tag_specifications {
@@ -33,10 +32,10 @@ resource "aws_launch_template" "app_launch_template" {
 
 # Auto Scaling Group pour gérer la mise à l'échelle automatique
 resource "aws_autoscaling_group" "app_asg" {
-  desired_capacity     = 2   # Nombre d'instances souhaitées
-  max_size             = 3   # Nombre maximal d'instances
-  min_size             = 1   # Nombre minimal d'instances
-  vpc_zone_identifier  = [var.private_subnet_id]  # Sous-réseau privé
+  desired_capacity     = var.app_desired_capacity
+  max_size             = var.app_max_size
+  min_size             = var.app_min_size
+  vpc_zone_identifier  = [var.private_subnet_id]
 
   launch_template {
     id      = aws_launch_template.app_launch_template.id
@@ -45,7 +44,7 @@ resource "aws_autoscaling_group" "app_asg" {
 
   # Health checks pour les instances
   health_check_type         = "EC2"
-  health_check_grace_period = 300
+  health_check_grace_period = var.app_health_check_grace_period
 
   tag {
     key                 = "Name"
@@ -64,7 +63,7 @@ resource "aws_autoscaling_policy" "app_cpu_policy" {
     predefined_metric_specification {
       predefined_metric_type = "ASGAverageCPUUtilization"
     }
-    target_value = 60.0  # Mise à l'échelle si l'utilisation CPU dépasse 60%
+    target_value = var.app_cpu_target_value
   }
 }
 

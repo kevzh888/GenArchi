@@ -1,11 +1,11 @@
 resource "aws_instance" "db_instance" {
-  ami           = "ami-0c55b159cbfafe1f0"  # AMI pour la base de données
-  instance_type = "t2.micro"
+  ami           = var.db_ami_id
+  instance_type = var.db_instance_type
   subnet_id     = var.private_subnet_id
   security_groups = [var.db_sg_id]
 
   tags = {
-    Name = "db-instance"
+    Name = var.db_instance_name
   }
 
   user_data = <<-EOF
