@@ -22,8 +22,8 @@ terraform {
 // Specifies provider parameters
 provider "aws" {
   region = var.default-region
-  /*access_key = var.aws_access_key
-  secret_key = var.aws_secret_key*/
+  access_key = var.aws_access_key
+  secret_key = var.aws_secret_key
 }
 
 /*provider "azurerm" {

@@ -9,8 +9,13 @@ variable "web_sg_id" {
   type        = string
 }
 
-variable "public_subnet_id" {
-  description = "L'ID du sous-réseau public"
+variable "public_subnet_id_1" {
+  description = "L'ID du sous-réseau public 1"
+  type        = string
+}
+
+variable "public_subnet_id_2" {
+  description = "L'ID du sous-réseau public 2"
   type        = string
 }
 

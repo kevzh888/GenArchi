@@ -1,6 +1,11 @@
 # Variables pour le réseau
-variable "public_subnet_id" {
-  description = "ID du sous-réseau public"
+variable "public_subnet_id_1" {
+  description = "ID du sous-réseau public 1"
+  type = string
+}
+
+variable "public_subnet_id_2" {
+  description = "ID du sous-réseau public 2"
   type = string
 }
 
