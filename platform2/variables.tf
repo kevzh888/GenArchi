@@ -9,7 +9,7 @@ variable "default-region" {
   default     = "eu-west-3"
   description = "Default region used for creating our AWS ressources."
 }
-
+/*
 variable "aws_access_key" {
   description = "AWS Access Key"
   type        = string
@@ -18,4 +18,4 @@ variable "aws_access_key" {
 variable "aws_secret_key" {
   description = "AWS Secret Key"
   type        = string
-}
+}*/
