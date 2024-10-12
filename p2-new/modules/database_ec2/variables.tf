@@ -13,7 +13,7 @@ variable "db_sg_id" {
 variable "db_ami_id" {
   description = "ID de l'AMI pour l'instance de base de données"
   type        = string
-  default     = "ami-0c55b159cbfafe1f0"
+  default     = "ami-00c71bd4d220aa22a"
 }
 
 variable "db_instance_type" {

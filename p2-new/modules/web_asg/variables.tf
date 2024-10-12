@@ -19,7 +19,7 @@ variable "launch_template_name_prefix" {
 variable "instance_ami" {
   description = "ID de l'AMI pour l'instance"
   type = string
-  default = "ami-0c55b159cbfafe1f0"
+  default = "ami-00c71bd4d220aa22a"
 }
 
 variable "instance_type" {
