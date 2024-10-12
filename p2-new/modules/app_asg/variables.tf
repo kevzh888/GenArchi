@@ -19,7 +19,7 @@ variable "app_instance_type" {
 
 variable "app_ami_id" {
   description = "ID de l'AMI pour le tiers App"
-  default     = "ami-0c55b159cbfafe1f0"
+  default     = "ami-0a3598a00eff32f66"
 }
 
 # Variables pour la configuration de l'Auto Scaling Group
