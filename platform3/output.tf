@@ -1,3 +1,4 @@
-output "files_to_upload" {
-  value = module.s3bucket.files_to_upload
+output "bucket_url" {
+  description = "URL of the s3 bucket."
+  value       = module.s3bucket.bucket_regional_domain_name
 }
