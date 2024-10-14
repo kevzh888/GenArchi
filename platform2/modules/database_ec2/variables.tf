@@ -1,5 +1,5 @@
 # Variables pour le réseau
-variable "public_subnet_id" {
+variable "public_subnet_id" { // FIXME: Faudra changer pour mettre un sous-réseau privé plutôt ici 
   description = "ID du sous-réseau public"
   type = string
 }
