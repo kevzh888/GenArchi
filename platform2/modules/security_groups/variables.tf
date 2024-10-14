@@ -66,3 +66,27 @@ variable "db_sg_name" {
   type        = string
   default     = "db_sg"
 }
+
+variable "db_ingress_ssh_from_port" {
+  description = "Port de départ pour l'ingress SSH du groupe de sécurité web"
+  type        = number
+  default     = 22
+}
+
+variable "db_ingress_ssh_to_port" {
+  description = "Port de fin pour l'ingress SSH du groupe de sécurité web"
+  type        = number
+  default     = 22
+}
+
+variable "db_ingress_ssh_protocol" {
+  description = "Protocole pour l'ingress SSH du groupe de sécurité web"
+  type        = string
+  default     = "tcp"
+}
+
+variable "db_ingress_ssh_cidr_blocks" {
+  description = "Blocs CIDR autorisés pour l'ingress SSH du groupe de sécurité web"
+  type        = list(string)
+  default     = ["0.0.0.0/0"]  # Remplacez par votre IP pour plus de sécurité
+}

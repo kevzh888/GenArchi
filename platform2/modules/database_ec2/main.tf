@@ -1,7 +1,7 @@
 resource "aws_instance" "db_instance" {
   ami           = var.db_ami_id
   instance_type = var.db_instance_type
-  subnet_id     = var.private_subnet_id
+  subnet_id     = var.public_subnet_id
   security_groups = [var.db_sg_id]
 
   tags = {

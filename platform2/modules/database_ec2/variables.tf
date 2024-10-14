@@ -1,6 +1,6 @@
 # Variables pour le réseau
-variable "private_subnet_id" {
-  description = "ID du sous-réseau privé"
+variable "public_subnet_id" {
+  description = "ID du sous-réseau public"
   type = string
 }
 
@@ -13,7 +13,7 @@ variable "db_sg_id" {
 variable "db_ami_id" {
   description = "ID de l'AMI pour l'instance de base de données"
   type        = string
-  default     = "ami-0a3598a00eff32f66"
+  default     = "ami-045a8ab02aadf4f88"
 }
 
 variable "db_instance_type" {

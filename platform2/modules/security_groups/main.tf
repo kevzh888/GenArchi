@@ -31,6 +31,21 @@ resource "aws_security_group" "app_sg" {
 resource "aws_security_group" "db_sg" {
   vpc_id = var.vpc_id
 
+  ingress {
+    from_port   = var.db_ingress_ssh_from_port
+    to_port     = var.db_ingress_ssh_to_port
+    protocol    = var.db_ingress_ssh_protocol
+    cidr_blocks = var.db_ingress_ssh_cidr_blocks
+  }
+
+  # Règle de sortie pour autoriser tout le trafic sortant par défaut
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   tags = {
     Name = var.db_sg_name
   }
