@@ -6,7 +6,7 @@ variable "var_dynamodb_table_name" {
 variable "var_billing_mode" {
   description = "Le mode de facturation pour la table DynamoDB."
   type        = string
-  default     = "PAY_PER_REQUEST" 
+  default     = "PROVISIONED"  
 }
 
 variable "var_hash_key" {
@@ -18,11 +18,11 @@ variable "var_hash_key" {
 variable "var_stream_enabled" {
   description = "Si les flux DynamoDB doivent être activés."
   type        = bool
-  default     = true  # Valeur par défaut
+  default     = true  
 }
 
 variable "var_stream_view_type" {
   description = "Le type de vue pour DynamoDB Streams."
   type        = string
-  default     = "NEW_IMAGE"  # Valeur par défaut
+  default     = "NEW_IMAGE"  
 }

@@ -41,3 +41,6 @@ terraform.rc
 .idea/
 .vscode/
 *.swp
+
+# scripts
+setup_credential.sh

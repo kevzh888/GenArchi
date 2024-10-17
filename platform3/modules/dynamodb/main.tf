@@ -3,7 +3,9 @@
 resource "aws_dynamodb_table" "quote_table" {
   name         = var.var_dynamodb_table_name
   billing_mode = var.var_billing_mode
-  hash_key     = var.var_hash_key
+  read_capacity  = 20
+  write_capacity = 20
+  hash_key     = "quote_id"
     
   attribute {
     name = "quote_id"
