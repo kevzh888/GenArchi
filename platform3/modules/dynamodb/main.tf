@@ -5,10 +5,10 @@ resource "aws_dynamodb_table" "quote_table" {
   billing_mode = var.var_billing_mode
   read_capacity  = 20
   write_capacity = 20
-  hash_key     = "quote_id"
+  hash_key     = "id"
     
   attribute {
-    name = "quote_id"
+    name = "id"
     type = "S"
   }
 

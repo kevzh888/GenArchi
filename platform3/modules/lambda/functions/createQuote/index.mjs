@@ -3,7 +3,7 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { PutCommand } from "@aws-sdk/lib-dynamodb";
 
 // Créer une instance de DynamoDBClient
-const client = new DynamoDBClient({ region: "eu-north-1" }); // Spécifiez la région de votre table
+const client = new DynamoDBClient({ region: "eu-west-3" }); // Spécifiez la région de votre table
 
 export const handler = async (event) => {
   const body = JSON.parse(event.body);
