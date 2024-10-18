@@ -1,5 +1,5 @@
-resource "aws_api_gateway_rest_api" "aws_api_gateway_quotes" {
-  name        = "aws_api_gateway_quotes"
+resource "aws_api_gateway_rest_api" "quotes" {
+  name        = "quotes"
   description = "My API Gateway"
 
   body = jsonencode({
@@ -78,10 +78,10 @@ resource "aws_api_gateway_rest_api" "aws_api_gateway_quotes" {
 }
 
 resource "aws_api_gateway_deployment" "quotes" {
-  rest_api_id = aws_api_gateway_rest_api.aws_api_gateway_quotes.id
+  rest_api_id = aws_api_gateway_rest_api.quotes.id
 
   triggers = {
-    redeployment = sha1(jsonencode(aws_api_gateway_rest_api.aws_api_gateway_quotes.body))
+    redeployment = sha1(jsonencode(aws_api_gateway_rest_api.quotes.body))
   }
 
   lifecycle {
@@ -89,14 +89,30 @@ resource "aws_api_gateway_deployment" "quotes" {
   }
 }
 
+resource "aws_lambda_permission" "permissionsGet" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.var_lambda_get_quote_arn
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = aws_api_gateway_rest_api.quotes.execution_arn
+}
+
+resource "aws_lambda_permission" "permissionsCreate" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = var.var_lambda_create_quote_arn
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = aws_api_gateway_rest_api.quotes.execution_arn
+}
+
 resource "aws_api_gateway_stage" "quotes" {
   deployment_id = aws_api_gateway_deployment.quotes.id
-  rest_api_id   = aws_api_gateway_rest_api.aws_api_gateway_quotes.id
+  rest_api_id   = aws_api_gateway_rest_api.quotes.id
   stage_name    = "quotes"
 }
 
 resource "aws_api_gateway_resource" "root" {
-  rest_api_id = aws_api_gateway_rest_api.aws_api_gateway_quotes.id
-  parent_id   = aws_api_gateway_rest_api.aws_api_gateway_quotes.root_resource_id
+  rest_api_id = aws_api_gateway_rest_api.quotes.id
+  parent_id   = aws_api_gateway_rest_api.quotes.root_resource_id
   path_part   = "quotes"
 }
