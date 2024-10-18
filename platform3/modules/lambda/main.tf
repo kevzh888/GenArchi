@@ -2,8 +2,8 @@
 
 data "archive_file" "get_quote_zip" {
   type        = "zip"
-  source_file = "${path.module}/functions/getQuote/index.mjs"
-  output_path = "${path.module}/functions/getQuote.zip"
+  source_file = "${path.module}/functions/getQuotes/index.mjs"
+  output_path = "${path.module}/functions/getQuotes.zip"
 }
 
 data "archive_file" "create_quote_zip" {

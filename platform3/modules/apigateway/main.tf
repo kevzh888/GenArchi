@@ -15,7 +15,7 @@ resource "aws_api_gateway_rest_api" "quotes" {
             httpMethod           = "GET"
             payloadFormatVersion = "1.0"
             type                 = "HTTP_PROXY"
-            uri                  = var.var_lambda_get_quote_arn
+            uri                  = var.var_lambda_get_quotes_invoke_arn
           }
         }
         options = {
@@ -45,7 +45,7 @@ resource "aws_api_gateway_rest_api" "quotes" {
             httpMethod           = "POST"
             payloadFormatVersion = "1.0"
             type                 = "HTTP_PROXY"
-            uri                  = var.var_lambda_create_quote_arn
+            uri                  = var.var_lambda_create_quote_invoke_arn
           }
         }
         options = {
@@ -92,7 +92,7 @@ resource "aws_api_gateway_deployment" "quotes" {
 resource "aws_lambda_permission" "permissionsGet" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
-  function_name = var.var_lambda_get_quote_arn
+  function_name = var.var_lambda_get_quotes_arn
   principal     = "apigateway.amazonaws.com"
   source_arn    = aws_api_gateway_rest_api.quotes.execution_arn
 }
