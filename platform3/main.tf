@@ -1,6 +1,7 @@
 # S3 bucket
 module "s3bucket" {
   source = "./modules/s3bucket"
+
   var_s3_bucket_name = "ga-s3bucket-quotes-app"
   var_object_ownership = "BucketOwnerPreferred"
   var_bucket_acl = "public-read"
@@ -10,14 +11,24 @@ module "s3bucket" {
 # DynamoDB table
 module "dynamodb" {
   source = "./modules/dynamodb"
+
   var_dynamodb_table_name = "QuotesTable"
 }
 
 # Lambda functions
 module "lambda" {
   source = "./modules/lambda"
+
   var_dynamodb_table_arn = module.dynamodb.dynamodb_table_arn
   var_get_quote_lambda_function_name = "getQuote-function"
   var_create_quote_lambda_function_name = "createQuote-function"
   var_lambda_role_name = "lambda-execution-role"
+}
+
+# API Gateway
+module "apigateway" {
+  source = "./modules/apigateway"
+
+  var_lambda_get_quote_arn = module.lambda.get_quotes_lambda_arn
+  var_lambda_create_quote_arn = module.lambda.create_quote_lambda_arn
 }
