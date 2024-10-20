@@ -48,13 +48,14 @@ module "web_asg" {
 
 module "app_asg" {
   source            = "./modules/app_asg"
-  private_subnet_id = module.subnets.private_subnet_id
+  private_subnet_id_1 = module.subnets.private_subnet_id_1
+  private_subnet_id_2 = module.subnets.private_subnet_id_2
   app_sg_id         = module.security_groups.app_sg_id
 }
 
 # --- Database EC2 Instance ---
 module "database_ec2" {
   source            = "./modules/database_ec2"
-  private_subnet_id = module.subnets.private_subnet_id
+  private_subnet_id = module.subnets.private_subnet_id_1
   db_sg_id          = module.security_groups.db_sg_id
 }

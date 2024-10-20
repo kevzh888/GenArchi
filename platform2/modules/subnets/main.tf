@@ -11,12 +11,13 @@ resource "aws_subnet" "public_subnet" {
 }
 
 resource "aws_subnet" "private_subnet" {
+  count = 2
   vpc_id = var.vpc_id
-  cidr_block = var.private_subnet_cidr
-  availability_zone = var.private_subnet_az
+  cidr_block = cidrsubnet(var.private_subnet_cidr, 8, count.index)
+  availability_zone = element([var.private_subnet_az_1, var.private_subnet_az_2], count.index)
 
   tags = {
-    Name = "private_subnet"
+    Name = "private_subnet_${count.index + 1}"
   }
 }
 
@@ -65,7 +66,7 @@ resource "aws_route_table" "public_route_table" {
 }
 
 resource "aws_route_table_association" "rt_association_nat_gateway" {
-  subnet_id = aws_subnet.private_subnet.id
+  subnet_id = aws_subnet.private_subnet[0].id
   route_table_id = aws_route_table.nat_route_table.id
 }
 

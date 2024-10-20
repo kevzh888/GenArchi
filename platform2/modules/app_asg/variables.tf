@@ -1,7 +1,12 @@
 # Variables à définir pour le réseau et la sécurité
 # Ces variables sont nécessaires pour configurer l'emplacement et la sécurité de l'ASG
-variable "private_subnet_id" {
-  description = "ID du sous-réseau privé pour le tiers App"
+variable "private_subnet_id_1" {
+  description = "ID du sous-réseau privé 1 pour le tiers App"
+  type        = string
+}
+
+variable "private_subnet_id_2" {
+  description = "ID du sous-réseau privé 2 pour le tiers App"
   type        = string
 }
 

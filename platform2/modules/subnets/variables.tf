@@ -49,8 +49,14 @@ variable "private_subnet_cidr" {
   default = "10.0.2.0/24"
 }
 
-variable "private_subnet_az" {
-  description = "Zone de disponibilité pour le sous-réseau privé"
+variable "private_subnet_az_1" {
+  description = "Zone de disponibilité pour le sous-réseau privé 1"
+  type = string
+  default = "eu-west-3a"
+}
+
+variable "private_subnet_az_2" {
+  description = "Zone de disponibilité pour le sous-réseau privé 2"
   type = string
   default = "eu-west-3b"
 }
