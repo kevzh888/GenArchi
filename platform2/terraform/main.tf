@@ -46,6 +46,15 @@ module "web_asg" {
   web_sg_id        = module.security_groups.web_sg_id
 }
 
+# --- Load Balancer for App Tier ---
+module "app_lb" {
+  source           = "./modules/app_lb"
+  vpc_id           = module.vpc.vpc_id
+  public_subnet_id_1 = module.subnets.public_subnet_id_1
+  public_subnet_id_2 = module.subnets.public_subnet_id_2
+  app_sg_id        = module.security_groups.app_sg_id
+}
+
 module "app_asg" {
   source            = "./modules/app_asg"
   private_subnet_id_1 = module.subnets.private_subnet_id_1
