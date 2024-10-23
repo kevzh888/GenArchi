@@ -61,7 +61,7 @@
     <script>
       // Define the S3 URL where the API Gateway URL is stored
       const s3Url = 'https://ga-s3bucket-quotes-app.s3.amazonaws.com/api_gateway_url.txt';
-      const API_URL = "";
+      const apiGatewayUrl = "";
 
       async function fetchApiGatewayUrl() {
         try {
@@ -74,10 +74,10 @@
           }
 
           // Get the text (URL) from the response
-          const API_URL = await response.text();
+          apiGatewayUrl = response.text();
 
           // Use the URL in your API request
-          console.log('API Gateway URL:', API_URL);
+          console.log('API Gateway URL:', apiGatewayUrl);
         } catch (error) {
           console.error('Error:', error);
         }
@@ -90,7 +90,7 @@
       // Fetch and display the quotes on page load
       async function fetchQuotes() {
         try {
-          const response = await fetch(API_URL);
+          const response = await fetch(apiGatewayUrl);
           const quotes = await response.json();
           const quotesList = document.getElementById("quotes-list");
           quotesList.innerHTML = quotes
@@ -112,7 +112,7 @@
         }
 
         try {
-          await fetch(API_URL, {
+          await fetch(apiGatewayUrl, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

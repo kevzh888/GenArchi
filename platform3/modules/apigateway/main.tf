@@ -164,6 +164,5 @@ resource "aws_api_gateway_resource" "root" {
 resource "aws_s3_object" "api_gateway_url" {
   bucket = var.var_bucket
   key    = "api_gateway_url.txt"
-  content = "https://${module.apigateway.rest_api_id}.execute-api.${var.aws_region}.amazonaws.com/$%7Bmodule.apigateway.api_stage_name%7D/"
-  acl    = "public-read"
+  content = "https://${aws_api_gateway_rest_api.quotes.id}.execute-api.${var.aws_region}.amazonaws.com/module.apigateway.api_stage_name/"
 }

@@ -27,6 +27,7 @@ variable "var_lambda_create_quote_invoke_arn" {
 variable "var_bucket" {
   description = "The name of the S3 bucket."
   type        = string
+  default     = "ga-s3bucket-quotes-app"
 }
 
 variable "aws_region" {
