@@ -1,6 +1,6 @@
 # Variables pour le réseau
-variable "private_subnet_id" { 
-  description = "ID du sous-réseau privé"
+variable "public_subnet_id" { #FIXME
+  description = "ID du sous-réseau public"
   type = string
 }
 

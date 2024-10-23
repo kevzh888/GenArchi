@@ -56,6 +56,12 @@ module "app_asg" {
 # --- Database EC2 Instance ---
 module "database_ec2" {
   source            = "./modules/database_ec2"
-  private_subnet_id = module.subnets.private_subnet_id_1
+  public_subnet_id = module.subnets.public_subnet_id_1
+  db_sg_id          = module.security_groups.db_sg_id
+}
+
+module "database_ec2_2" {
+  source            = "./modules/database_ec2"
+  public_subnet_id = module.subnets.public_subnet_id_2
   db_sg_id          = module.security_groups.db_sg_id
 }
