@@ -5,7 +5,7 @@ resource "aws_api_gateway_rest_api" "quotes" {
   body = jsonencode({
     openapi = "3.0.1"
     info = {
-      title   = "example"
+      title   = "quotes"
       version = "1.0"
     }
     paths = {
@@ -14,7 +14,7 @@ resource "aws_api_gateway_rest_api" "quotes" {
           x-amazon-apigateway-integration = {
             httpMethod           = "GET"
             payloadFormatVersion = "1.0"
-            type                 = "HTTP_PROXY"
+            type                 = "AWS_PROXY"
             uri                  = var.var_lambda_get_quotes_invoke_arn
           }
         }
@@ -37,6 +37,28 @@ resource "aws_api_gateway_rest_api" "quotes" {
               }
             }
           }
+          responses = {
+            "200" = {
+              description = "CORS support"
+              headers = {
+                "Access-Control-Allow-Headers" = {
+                  schema = {
+                    type = "string"
+                  }
+                }
+                "Access-Control-Allow-Methods" = {
+                  schema = {
+                    type = "string"
+                  }
+                }
+                "Access-Control-Allow-Origin" = {
+                  schema = {
+                    type = "string"
+                  }
+                }
+              }
+            }
+          }
         }
       },
       "/createQuote" = {
@@ -44,7 +66,7 @@ resource "aws_api_gateway_rest_api" "quotes" {
           x-amazon-apigateway-integration = {
             httpMethod           = "POST"
             payloadFormatVersion = "1.0"
-            type                 = "HTTP_PROXY"
+            type                 = "AWS_PROXY"
             uri                  = var.var_lambda_create_quote_invoke_arn
           }
         }
@@ -63,6 +85,28 @@ resource "aws_api_gateway_rest_api" "quotes" {
                   "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
                   "method.response.header.Access-Control-Allow-Methods" = "'POST,OPTIONS'"
                   "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+                }
+              }
+            }
+          }
+          responses = {
+            "200" = {
+              description = "CORS support"
+              headers = {
+                "Access-Control-Allow-Headers" = {
+                  schema = {
+                    type = "string"
+                  }
+                }
+                "Access-Control-Allow-Methods" = {
+                  schema = {
+                    type = "string"
+                  }
+                }
+                "Access-Control-Allow-Origin" = {
+                  schema = {
+                    type = "string"
+                  }
                 }
               }
             }
@@ -115,4 +159,11 @@ resource "aws_api_gateway_resource" "root" {
   rest_api_id = aws_api_gateway_rest_api.quotes.id
   parent_id   = aws_api_gateway_rest_api.quotes.root_resource_id
   path_part   = "quotes"
+}
+
+resource "aws_s3_object" "api_gateway_url" {
+  bucket = var.var_bucket
+  key    = "api_gateway_url.txt"
+  content = "https://${module.apigateway.rest_api_id}.execute-api.${var.aws_region}.amazonaws.com/$%7Bmodule.apigateway.api_stage_name%7D/"
+  acl    = "public-read"
 }

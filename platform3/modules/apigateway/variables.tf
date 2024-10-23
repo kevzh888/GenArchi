@@ -23,3 +23,14 @@ variable "var_lambda_create_quote_invoke_arn" {
   description = "The invoke ARN of the Lambda function to create a quote."
   type        = string
 }
+
+variable "var_bucket" {
+  description = "The name of the S3 bucket."
+  type        = string
+}
+
+variable "aws_region" {
+  description = "The aws region"
+  type        = string
+  default = "eu-west-3"
+}

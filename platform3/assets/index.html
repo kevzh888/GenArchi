@@ -59,9 +59,33 @@
     <ul id="quotes-list"></ul>
 
     <script>
-      // API Gateway URL (replace with your actual API Gateway URL)
-      const API_URL =
-        "https://1p203zhi1g.execute-api.eu-north-1.amazonaws.com/prod/quotes";
+      // Define the S3 URL where the API Gateway URL is stored
+      const s3Url = 'https://ga-s3bucket-quotes-app.s3.amazonaws.com/api_gateway_url.txt';
+      const API_URL = "";
+
+      async function fetchApiGatewayUrl() {
+        try {
+          // Fetch the API Gateway URL from the S3 object
+          const response = await fetch(s3Url);
+
+          // Check if the response is successful
+          if (!response.ok) {
+            throw new Error('Failed to fetch the API Gateway URL.');
+          }
+
+          // Get the text (URL) from the response
+          const API_URL = await response.text();
+
+          // Use the URL in your API request
+          console.log('API Gateway URL:', API_URL);
+        } catch (error) {
+          console.error('Error:', error);
+        }
+      }
+
+      // Call the function to fetch and use the API Gateway URL
+      fetchApiGatewayUrl();
+
 
       // Fetch and display the quotes on page load
       async function fetchQuotes() {
