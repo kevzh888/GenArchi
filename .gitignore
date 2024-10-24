@@ -3,6 +3,8 @@ aws_credentials.sh
 # Local .terraform directories
 **/.terraform/*
 
+*.zip
+
 # .tfstate files
 *.tfstate
 *.tfstate.*
@@ -166,3 +168,5 @@ test/units/.coverage.*
 /SYMLINK_CACHE.json
 changelogs/.plugin-cache.yaml
 .ansible-test-timeout.json
+# scripts
+setup_credential.sh
