@@ -25,7 +25,6 @@ module "apigateway" {
   var_lambda_get_quotes_invoke_arn = module.lambda.get_quotes_lambda_invoke_arn
   var_lambda_create_quote_invoke_arn = module.lambda.create_quote_lambda_invoke_arn
 }
-<<<<<<< HEAD
 
 # S3 bucket
 module "s3bucket" {
@@ -36,5 +35,3 @@ module "s3bucket" {
   var_bucket_acl = "public-read"
   var_website_assets_dir = "./assets"
 }
-=======
->>>>>>> f604fb4f3f09639da0edf6e663cd11de6cefd1b8

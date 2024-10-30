@@ -74,7 +74,6 @@ resource "aws_s3_bucket_website_configuration" "example" {
   }
 }
 
-<<<<<<< HEAD
 resource "aws_s3_bucket_cors_configuration" "website_bucket_cors" {
   bucket = aws_s3_bucket.website_bucket.id
 
@@ -108,8 +107,6 @@ resource "aws_s3_bucket_cors_configuration" "website_bucket_cors" {
 
 
 
-=======
->>>>>>> f604fb4f3f09639da0edf6e663cd11de6cefd1b8
 resource "aws_s3_bucket_policy" "allow_public_access" {
    depends_on = [
     aws_s3_bucket_public_access_block.website_bucket_public_access_block,
