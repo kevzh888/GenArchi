@@ -20,7 +20,7 @@ resource "aws_subnet" "private_subnet" {
 }
 
 # AWS NAT gateway
-resource "aws_eip" "nat_eip" {
+/*resource "aws_eip" "nat_eip" {
   vpc = true
 
   tags = {
@@ -46,7 +46,7 @@ resource "aws_route_table" "nat_route_table" {
     cidr_block = "0.0.0.0/0"
     gateway_id = var.igw_id
   }
-}
+}*/
 
 # Création de la table de routage
 resource "aws_route_table" "public_route_table" {
@@ -63,10 +63,10 @@ resource "aws_route_table" "public_route_table" {
   }
 }
 
-resource "aws_route_table_association" "rt_association_nat_gateway" {
+/*resource "aws_route_table_association" "rt_association_nat_gateway" {
   subnet_id = aws_subnet.private_subnet[0].id
   route_table_id = aws_route_table.nat_route_table.id
-}
+}*/
 
 # Association de la table de routage au sous-réseau public 1
 resource "aws_route_table_association" "rt_association_s1" {

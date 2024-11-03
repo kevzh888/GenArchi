@@ -44,6 +44,7 @@ module "web_asg" {
   public_subnet_id_1 = module.subnets.public_subnet_id_1
   public_subnet_id_2 = module.subnets.public_subnet_id_2
   web_sg_id        = module.security_groups.web_sg_id
+  target_group_arn = module.web_lb.web_target_group_arn
 }
 
 # --- Load Balancer for App Tier ---

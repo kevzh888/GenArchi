@@ -63,3 +63,8 @@ variable "asg_tag_name" {
   type = string
   default = "web-asg"
 }
+
+variable "target_group_arn" {
+  description = "ARN du Target Group pour attacher l'ASG Web"
+  type        = string
+}

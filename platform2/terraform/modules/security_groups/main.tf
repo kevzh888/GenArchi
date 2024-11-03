@@ -8,6 +8,13 @@ resource "aws_security_group" "web_sg" {
     cidr_blocks = var.web_ingress_cidr_blocks
   }
 
+  ingress {
+    from_port   = var.db_ingress_ssh_from_port
+    to_port     = var.db_ingress_ssh_to_port
+    protocol    = var.db_ingress_ssh_protocol
+    cidr_blocks = var.db_ingress_ssh_cidr_blocks
+  }
+
   tags = {
     Name = var.web_sg_name
   }
