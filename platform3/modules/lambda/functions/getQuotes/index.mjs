@@ -28,6 +28,11 @@ export const handler = async (event) => {
     console.error(error);
     return {
       statusCode: 500,
+      headers: {
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
+      },
       body: JSON.stringify({ error: "Could not fetch quotes" }),
     };
   }

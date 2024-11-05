@@ -74,39 +74,6 @@ resource "aws_s3_bucket_website_configuration" "example" {
   }
 }
 
-resource "aws_s3_bucket_cors_configuration" "website_bucket_cors" {
-  bucket = aws_s3_bucket.website_bucket.id
-
-  cors_rule {
-    allowed_methods = [
-      "GET",
-      "POST",
-      "PUT",
-      "DELETE",
-      "HEAD",
-    ]
-
-    allowed_origins = [
-      "https://your-allowed-origin.com", # Replace with your origin
-      "*",  # Use '*' to allow all origins (not recommended for production)
-    ]
-
-    allowed_headers = [
-      "*",  # Use '*' to allow all headers
-    ]
-
-    expose_headers = [
-      "ETag",
-      "x-amz-request-id",
-    ]
-
-    max_age_seconds = 3000  # Optional: cache preflight response for this long
-  }
-}
-
-
-
-
 resource "aws_s3_bucket_policy" "allow_public_access" {
    depends_on = [
     aws_s3_bucket_public_access_block.website_bucket_public_access_block,

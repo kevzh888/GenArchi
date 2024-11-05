@@ -22,6 +22,9 @@ async function fetchApiGatewayUrl() {
 
     // Use the URL in your API request
     console.log('API Gateway URL:', apiGatewayUrl);
+
+    // Fetch quotes after the API Gateway URL is loaded
+    fetchQuotes();
   } catch (error) {
     console.error('Error:', error);
   }
@@ -30,11 +33,10 @@ async function fetchApiGatewayUrl() {
 // Call the function to fetch and use the API Gateway URL
 fetchApiGatewayUrl();
 
-
-// Fetch and display the quotes on page load
+// Fetch and display the quotes
 async function fetchQuotes() {
   try {
-    const response = await fetch(apiGatewayUrl);
+    const response = await fetch(`${apiGatewayUrl}/getQuotes`);
     const quotes = await response.json();
     const quotesList = document.getElementById("quotes-list");
     quotesList.innerHTML = quotes
@@ -56,7 +58,7 @@ async function addQuote() {
   }
 
   try {
-    await fetch(apiGatewayUrl, {
+    await fetch(`${apiGatewayUrl}/createQuote`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -69,6 +71,3 @@ async function addQuote() {
     console.error("Error adding quote:", error);
   }
 }
-
-// Fetch quotes when the page loads
-window.onload = fetchQuotes;

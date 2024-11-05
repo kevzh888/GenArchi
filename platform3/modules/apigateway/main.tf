@@ -138,7 +138,7 @@ resource "aws_lambda_permission" "permissionsGet" {
   action        = "lambda:InvokeFunction"
   function_name = var.var_lambda_get_quotes_arn
   principal     = "apigateway.amazonaws.com"
-  source_arn    = aws_api_gateway_rest_api.quotes.execution_arn
+  source_arn    = "${aws_api_gateway_rest_api.quotes.execution_arn}/*"
 }
 
 resource "aws_lambda_permission" "permissionsCreate" {
@@ -146,7 +146,7 @@ resource "aws_lambda_permission" "permissionsCreate" {
   action        = "lambda:InvokeFunction"
   function_name = var.var_lambda_create_quote_arn
   principal     = "apigateway.amazonaws.com"
-  source_arn    = aws_api_gateway_rest_api.quotes.execution_arn
+  source_arn    = "${aws_api_gateway_rest_api.quotes.execution_arn}/*"
 }
 
 resource "aws_api_gateway_stage" "quotes" {
@@ -164,6 +164,6 @@ resource "aws_api_gateway_resource" "root" {
 resource "aws_s3_object" "api_gateway_url" {
   bucket = var.var_bucket
   key    = "api_gateway_url.txt"
-  content = "https://${aws_api_gateway_rest_api.quotes.id}.execute-api.${var.aws_region}.amazonaws.com/quotes/"
+  content = "https://${aws_api_gateway_rest_api.quotes.id}.execute-api.${var.aws_region}.amazonaws.com/quotes"
   acl = "public-read"
 }
