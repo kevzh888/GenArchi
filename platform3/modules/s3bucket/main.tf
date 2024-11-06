@@ -48,9 +48,11 @@ resource "aws_s3_bucket_cors_configuration" "website_bucket_cors" {
     allowed_origins = [
       "*",
       "",
+      "https://ga-s3bucket-quotes-app.s3.eu-west-3.amazonaws.com/",
     ]
     allowed_headers = [
       "",
+      "*",  
     ]
     expose_headers = [
       "ETag",

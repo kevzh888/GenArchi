@@ -9,6 +9,9 @@ async function fetchApiGatewayUrl() {
       method: "GET",
       headers: {
         "Content-Type": "text/plain",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
       }
     });
 
@@ -36,7 +39,15 @@ fetchApiGatewayUrl();
 // Fetch and display the quotes
 async function fetchQuotes() {
   try {
-    const response = await fetch(`${apiGatewayUrl}/getQuotes`);
+    const response = await fetch(`${apiGatewayUrl}/getQuotes`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
+      }
+  });
     const quotes = await response.json();
     const quotesList = document.getElementById("quotes-list");
     quotesList.innerHTML = quotes
@@ -62,6 +73,9 @@ async function addQuote() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
       },
       body: JSON.stringify({ quote: newQuote }),
     });
