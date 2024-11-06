@@ -12,7 +12,8 @@ async function fetchApiGatewayUrl() {
         "Access-Control-Allow-Headers": "Content-Type",
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
-      }
+      },
+      mode: "cors",
     });
 
     // Check if the response is successful
@@ -46,7 +47,8 @@ async function fetchQuotes() {
         "Access-Control-Allow-Headers": "Content-Type",
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
-      }
+      },
+      mode: "cors",
   });
     const quotes = await response.json();
     const quotesList = document.getElementById("quotes-list");
@@ -77,6 +79,7 @@ async function addQuote() {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
       },
+      mode: "cors",
       body: JSON.stringify({ quote: newQuote }),
     });
     quoteInput.value = ""; // Clear the input field
