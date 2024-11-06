@@ -1,31 +1,10 @@
 // Define the S3 URL where the API Gateway URL is stored
-const s3Url = 'https://ga-s3bucket-quotes-app.s3.amazonaws.com/api_gateway_url.txt';
-var apiGatewayUrl = "";
+const s3Url = 'https://m2ltl5qcu8.execute-api.eu-west-3.amazonaws.com/quotes'
 
-async function fetchApiGatewayUrl() {
+async function init() {
   try {
-    // Fetch the API Gateway URL from the S3 object
-    const response = await fetch(s3Url, {
-      method: "GET",
-      headers: {
-        "Content-Type": "text/plain",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
-      },
-      mode: "no-cors",
-    });
-
-    // Check if the response is successful
-    if (!response.ok) {
-      throw new Error('Failed to fetch the API Gateway URL.');
-    }
-
-    // Get the text (URL) from the response
-    apiGatewayUrl = await response.text();
-
     // Use the URL in your API request
-    console.log('API Gateway URL:', apiGatewayUrl);
+    console.log('API Gateway URL:', s3Url);
 
     // Fetch quotes after the API Gateway URL is loaded
     fetchQuotes();
@@ -35,12 +14,12 @@ async function fetchApiGatewayUrl() {
 }
 
 // Call the function to fetch and use the API Gateway URL
-fetchApiGatewayUrl();
+init();
 
 // Fetch and display the quotes
 async function fetchQuotes() {
   try {
-    const response = await fetch(`${apiGatewayUrl}/getQuotes`, {
+    const response = await fetch(`${s3Url}/getQuotes`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -71,7 +50,7 @@ async function addQuote() {
   }
 
   try {
-    await fetch(`${apiGatewayUrl}/createQuote`, {
+    await fetch(`${s3Url}/createQuote`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
