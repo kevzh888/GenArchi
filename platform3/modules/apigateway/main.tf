@@ -31,7 +31,7 @@ resource "aws_api_gateway_rest_api" "quotes" {
                 statusCode = "200"
                 responseParameters = {
                   "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
-                  "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
+                  "method.response.header.Access-Control-Allow-Methods" = "'OPTIONS,GET,POST'"
                   "method.response.header.Access-Control-Allow-Origin"  = "'*'"
                 }
               }
@@ -83,7 +83,7 @@ resource "aws_api_gateway_rest_api" "quotes" {
                 statusCode = "200"
                 responseParameters = {
                   "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
-                  "method.response.header.Access-Control-Allow-Methods" = "'POST,OPTIONS'"
+                  "method.response.header.Access-Control-Allow-Methods" = "'OPTIONS,GET,POST'"
                   "method.response.header.Access-Control-Allow-Origin"  = "'*'"
                 }
               }
@@ -160,9 +160,3 @@ resource "aws_api_gateway_resource" "root" {
   parent_id   = aws_api_gateway_rest_api.quotes.root_resource_id
   path_part   = "quotes"
 }
-
-/* resource "aws_s3_object" "api_gateway_url" {
-  bucket = var.var_bucket
-  key    = "api_gateway_url.txt"
-  content = "https://${aws_api_gateway_rest_api.quotes.id}.execute-api.${var.aws_region}.amazonaws.com/quotes"
-} */

@@ -1,5 +1,5 @@
 // Define the S3 URL where the API Gateway URL is stored
-const s3Url = 'https://m2ltl5qcu8.execute-api.eu-west-3.amazonaws.com/quotes'
+const s3Url = 'https://l4aa3eml9i.execute-api.eu-west-3.amazonaws.com/quotes'
 
 async function init() {
   try {
@@ -22,13 +22,9 @@ async function fetchQuotes() {
     const response = await fetch(`${s3Url}/getQuotes`, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
-      },
-      mode: "no-cors",
-  });
+        "Content-Type": "application/json"
+      }
+    });
     const quotes = await response.json();
     const quotesList = document.getElementById("quotes-list");
     quotesList.innerHTML = quotes
@@ -53,13 +49,9 @@ async function addQuote() {
     await fetch(`${s3Url}/createQuote`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
+        "Content-Type": "application/json"
       },
-      mode: "no-cors",
-      body: JSON.stringify({ quote: newQuote }),
+      body: JSON.stringify({ quote: newQuote })
     });
     quoteInput.value = ""; // Clear the input field
     fetchQuotes(); // Refresh the quotes list
