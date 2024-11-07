@@ -12,10 +12,32 @@ resource "aws_api_gateway_rest_api" "quotes" {
       "/getQuotes" = {
         get = {
           x-amazon-apigateway-integration = {
-            httpMethod           = "GET"
+            httpMethod           = "POST"
             payloadFormatVersion = "1.0"
             type                 = "AWS_PROXY"
             uri                  = var.var_lambda_get_quotes_invoke_arn
+          }
+          responses = {
+            "200" = {
+              description = "200 response"
+              headers = {
+                "Access-Control-Allow-Headers" = {
+                  schema = {
+                    type = "string"
+                  }
+                }
+                "Access-Control-Allow-Methods" = {
+                  schema = {
+                    type = "string"
+                  }
+                }
+                "Access-Control-Allow-Origin" = {
+                  schema = {
+                    type = "string"
+                  }
+                }
+              }
+            }
           }
         }
         options = {
@@ -161,8 +183,9 @@ resource "aws_api_gateway_resource" "root" {
   path_part   = "quotes"
 }
 
-/* resource "aws_s3_object" "api_gateway_url" {
-  bucket = var.var_bucket
-  key    = "api_gateway_url.txt"
-  content = "https://${aws_api_gateway_rest_api.quotes.id}.execute-api.${var.aws_region}.amazonaws.com/quotes"
-} */
+# Uncomment if you want to create an S3 object with the API Gateway URL
+# resource "aws_s3_object" "api_gateway_url" {
+#   bucket = var.var_bucket
+#   key    = "api_gateway_url.txt"
+#   content = "https://${aws_api_gateway_rest_api.quotes.id}.execute-api.${var.aws_region}.amazonaws.com/quotes"
+# }

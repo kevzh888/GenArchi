@@ -12,6 +12,12 @@ export const handler = async (event) => {
   if (!quote) {
     return {
       statusCode: 400,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "OPTIONS,POST",
+      },
       body: JSON.stringify({ error: "Quote is required" }),
     };
   }
@@ -31,9 +37,10 @@ export const handler = async (event) => {
     return {
       statusCode: 200,
       headers: {
+        "Content-Type": "application/json",
         "Access-Control-Allow-Headers": "Content-Type",
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
+        "Access-Control-Allow-Methods": "OPTIONS,POST",
       },
       body: JSON.stringify({ message: "Quote added successfully" }),
     };
@@ -42,9 +49,10 @@ export const handler = async (event) => {
     return {
       statusCode: 500,
       headers: {
+        "Content-Type": "application/json",
         "Access-Control-Allow-Headers": "Content-Type",
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
+        "Access-Control-Allow-Methods": "OPTIONS,POST",
       },
       body: JSON.stringify({ error: "Could not add quote" }),
     };
