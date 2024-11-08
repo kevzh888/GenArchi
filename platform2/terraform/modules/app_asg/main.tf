@@ -21,6 +21,15 @@ resource "aws_launch_template" "app_launch_template" {
   # User data pour configurer l'application lors du lancement
   user_data = base64encode(<<-EOF
               #!/bin/bash
+
+              # Récupération des adresses IP des bases de données depuis le fichier JSON
+              DB_IP_1=${var.db_ip_1}
+              DB_IP_2=${var.db_ip_2}
+
+              # Exporter les adresses IP en tant que variables d'environnement
+              export DB_INSTANCE_1_IP=$DB_IP_1
+              export DB_INSTANCE_2_IP=$DB_IP_2
+
               # Mises à jour et installation de dépendances
               sudo apt update -y
               sudo apt install -y nginx

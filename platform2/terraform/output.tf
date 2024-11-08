@@ -16,12 +16,12 @@ output "db_instance_public_ip_2" {
   value = module.database_ec2_2.db_instance_public_ip
 }
 
-output "website_url" {
+/* output "website_url" {
   description = "URL of the website on the S3"
   value       = module.static_site.website_endpoint
-}
+}*/
 
 output "web_url" {
-  value = "http://${module.web_asg.dns_name}"
-  description = "L'URL du site web tournant sur les instances Web sur les Ec2 web"
+  value = "http://${module.web_lb.dns_name}"
+  description = "L'URL du load balancer de notre site web"
 }

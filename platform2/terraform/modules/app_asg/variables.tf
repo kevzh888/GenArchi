@@ -55,3 +55,13 @@ variable "app_cpu_target_value" {
   description = "Valeur cible d'utilisation CPU pour la mise à l'échelle"
   default     = 60.0
 }
+
+variable "db_ip_1" {
+  description = "Ip de la db master"
+  default = "127.0.0.1"
+}
+
+variable "db_ip_2" {
+  description = "Ip de la db slave"
+  default = "127.0.0.1"
+}

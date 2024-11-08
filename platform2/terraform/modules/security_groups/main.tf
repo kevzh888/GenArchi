@@ -12,14 +12,14 @@ resource "aws_security_group" "web_sg" {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # Autoriser le trafic HTTPS
+    cidr_blocks = ["0.0.0.0/0"] # Autoriser le trafic HTTPS
   }
 
   ingress {
-    from_port   = -1  # ICMP
+    from_port   = -1 # ICMP
     to_port     = -1
     protocol    = "icmp"
-    cidr_blocks = ["0.0.0.0/0"]  # Autoriser le trafic ICMP
+    cidr_blocks = ["0.0.0.0/0"] # Autoriser le trafic ICMP
   }
 
   ingress {

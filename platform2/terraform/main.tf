@@ -61,6 +61,8 @@ module "app_asg" {
   private_subnet_id_1 = module.subnets.private_subnet_id_1
   private_subnet_id_2 = module.subnets.private_subnet_id_2
   app_sg_id         = module.security_groups.app_sg_id
+  db_ip_1           = module.database_ec2.db_instance_public_ip
+  db_ip_2           = module.database_ec2_2.db_instance_public_ip
 }
 
 # --- Database EC2 Instance ---
@@ -76,6 +78,6 @@ module "database_ec2_2" {
   db_sg_id          = module.security_groups.db_sg_id
 }
 
-module "static_site" {
+/*module "static_site" {
   source = "./modules/s3_static_site"
-}
+}*/
