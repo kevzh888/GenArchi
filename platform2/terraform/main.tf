@@ -76,6 +76,6 @@ module "database_ec2_2" {
   db_sg_id          = module.security_groups.db_sg_id
 }
 
-module "static_site" {
+/*module "static_site" {
   source = "./modules/s3_static_site"
-}
+}*/
