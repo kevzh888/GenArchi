@@ -1,0 +1,27 @@
+{
+  "db_instance_private_ip": {
+    "sensitive": false,
+    "type": "string",
+    "value": "10.0.0.77"
+  },
+  "db_instance_private_ip_2": {
+    "sensitive": false,
+    "type": "string",
+    "value": "10.0.1.52"
+  },
+  "db_instance_public_ip": {
+    "sensitive": false,
+    "type": "string",
+    "value": "35.180.75.219"
+  },
+  "db_instance_public_ip_2": {
+    "sensitive": false,
+    "type": "string",
+    "value": "35.180.137.102"
+  },
+  "web_url": {
+    "sensitive": false,
+    "type": "string",
+    "value": "http://web-lb-680759892.eu-west-3.elb.amazonaws.com"
+  }
+}
