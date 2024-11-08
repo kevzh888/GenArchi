@@ -2,26 +2,26 @@
   "db_instance_private_ip": {
     "sensitive": false,
     "type": "string",
-    "value": "10.0.0.77"
+    "value": "10.0.0.84"
   },
   "db_instance_private_ip_2": {
     "sensitive": false,
     "type": "string",
-    "value": "10.0.1.52"
+    "value": "10.0.1.13"
   },
   "db_instance_public_ip": {
     "sensitive": false,
     "type": "string",
-    "value": "35.180.75.219"
+    "value": "15.237.28.166"
   },
   "db_instance_public_ip_2": {
     "sensitive": false,
     "type": "string",
-    "value": "35.180.137.102"
+    "value": "52.47.103.221"
   },
   "web_url": {
     "sensitive": false,
     "type": "string",
-    "value": "http://web-lb-680759892.eu-west-3.elb.amazonaws.com"
+    "value": "http://web-lb-1170919372.eu-west-3.elb.amazonaws.com"
   }
 }

@@ -53,6 +53,13 @@ resource "aws_security_group" "app_sg" {
   }
 
   ingress {
+    from_port   = var.db_ingress_ssh_from_port
+    to_port     = var.db_ingress_ssh_to_port
+    protocol    = var.db_ingress_ssh_protocol
+    cidr_blocks = var.db_ingress_ssh_cidr_blocks
+  }
+
+  ingress {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"

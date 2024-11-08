@@ -58,8 +58,10 @@ module "app_lb" {
 
 module "app_asg" {
   source            = "./modules/app_asg"
-  private_subnet_id_1 = module.subnets.private_subnet_id_1
-  private_subnet_id_2 = module.subnets.private_subnet_id_2
+  /*private_subnet_id_1 = module.subnets.private_subnet_id_1
+  private_subnet_id_2 = module.subnets.private_subnet_id_2*/
+  public_subnet_id_1 = module.subnets.public_subnet_id_1
+  public_subnet_id_2 = module.subnets.public_subnet_id_2
   app_sg_id         = module.security_groups.app_sg_id
   db_ip_1           = module.database_ec2.db_instance_public_ip
   db_ip_2           = module.database_ec2_2.db_instance_public_ip

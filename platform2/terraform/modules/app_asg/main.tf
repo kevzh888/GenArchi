@@ -14,7 +14,7 @@ resource "aws_launch_template" "app_launch_template" {
 
   # Groupes de sécurité pour les instances
   network_interfaces {
-    associate_public_ip_address = false
+    associate_public_ip_address = true
     security_groups             = [var.app_sg_id]
   }
 
@@ -26,9 +26,9 @@ resource "aws_launch_template" "app_launch_template" {
               DB_IP_1=${var.db_ip_1}
               DB_IP_2=${var.db_ip_2}
 
-              # Exporter les adresses IP en tant que variables d'environnement
-              export DB_INSTANCE_1_IP=$DB_IP_1
-              export DB_INSTANCE_2_IP=$DB_IP_2
+              # Écrire les adresses IP dans un fichier de configuration
+              echo "export DB_INSTANCE_1_IP=$DB_IP_1" >> /etc/profile.d/db_env.sh
+              echo "export DB_INSTANCE_2_IP=$DB_IP_2" >> /etc/profile.d/db_env.sh
 
               # Mises à jour et installation de dépendances
               sudo apt update -y
@@ -44,7 +44,7 @@ resource "aws_autoscaling_group" "app_asg" {
   desired_capacity     = var.app_desired_capacity
   max_size             = var.app_max_size
   min_size             = var.app_min_size
-  vpc_zone_identifier  = [var.private_subnet_id_1, var.private_subnet_id_2]
+  vpc_zone_identifier  = [var.public_subnet_id_1, var.public_subnet_id_2]
 
   launch_template {
     id      = aws_launch_template.app_launch_template.id
