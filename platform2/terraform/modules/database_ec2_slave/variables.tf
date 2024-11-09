@@ -9,6 +9,10 @@ variable "db_sg_id" {
   type = string
 }
 
+variable "master_public_ip" {
+  description = "IP du master"
+}
+
 # Variables pour l'instance de base de données
 variable "db_ami_id" {
   description = "ID de l'AMI pour l'instance de base de données"

@@ -64,20 +64,21 @@ module "app_asg" {
   public_subnet_id_2 = module.subnets.public_subnet_id_2
   app_sg_id         = module.security_groups.app_sg_id
   db_ip_1           = module.database_ec2.db_instance_public_ip
-  db_ip_2           = module.database_ec2_2.db_instance_public_ip
+  db_ip_2           = module.database_ec2_slave.db_instance_public_ip
 }
 
 # --- Database EC2 Instance ---
 module "database_ec2" {
   source            = "./modules/database_ec2"
-  public_subnet_id = module.subnets.public_subnet_id_1
+  public_subnet_id  = module.subnets.public_subnet_id_1
   db_sg_id          = module.security_groups.db_sg_id
 }
 
-module "database_ec2_2" {
-  source            = "./modules/database_ec2"
-  public_subnet_id = module.subnets.public_subnet_id_2
+module "database_ec2_slave" {
+  source            = "./modules/database_ec2_slave"
+  public_subnet_id  = module.subnets.public_subnet_id_2
   db_sg_id          = module.security_groups.db_sg_id
+  master_public_ip = module.database_ec2.db_instance_public_ip
 }
 
 /*module "static_site" {

@@ -30,11 +30,11 @@ resource "aws_instance" "db_slave_instance" {
               # Set up the replication on the slave
               mysql -u root <<EOL
               CHANGE MASTER TO
-                  MASTER_HOST='${aws_instance.db_instance.public_ip}',  # Replace with the master instance's IP address
+                  MASTER_HOST='${var.master_public_ip}',
                   MASTER_USER='replicator',
                   MASTER_PASSWORD='arcl',
-                  MASTER_LOG_FILE='mysql-bin.000001',  # Replace with the actual log file name from the master
-                  MASTER_LOG_POS=4;  # Replace with the actual log position from the master
+                  MASTER_LOG_FILE='mysql-bin.000001',  # Replace with actual log file from master
+                  MASTER_LOG_POS=4;  # Replace with actual log position from master
               START SLAVE;
               EOL
 
