@@ -1,116 +1,83 @@
+# security_groups/main.tf
+
+# Security Group for Web Load Balancer
 resource "aws_security_group" "web_sg" {
   vpc_id = var.vpc_id
-
+  
+  # Allow HTTP from anywhere
   ingress {
-    from_port   = var.web_ingress_from_port
-    to_port     = var.web_ingress_to_port
-    protocol    = var.web_ingress_protocol
-    cidr_blocks = var.web_ingress_cidr_blocks
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
-
+  
+  # Allow HTTPS from anywhere
   ingress {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # Autoriser le trafic HTTPS
+    cidr_blocks = ["0.0.0.0/0"]
   }
-
+  
+  # Allow ICMP
   ingress {
-    from_port   = -1 # ICMP
+    from_port   = -1
     to_port     = -1
     protocol    = "icmp"
-    cidr_blocks = ["0.0.0.0/0"] # Autoriser le trafic ICMP
+    cidr_blocks = ["0.0.0.0/0"]
   }
-
+  
+  # Allow SSH
   ingress {
     from_port   = var.db_ingress_ssh_from_port
     to_port     = var.db_ingress_ssh_to_port
     protocol    = var.db_ingress_ssh_protocol
     cidr_blocks = var.db_ingress_ssh_cidr_blocks
   }
-
-  # Règle de sortie pour autoriser tout le trafic sortant
+  
+  # Allow all outbound traffic
   egress {
     from_port   = 0
     to_port     = 0
-    protocol    = "-1"  # Tous les protocoles
-    cidr_blocks = ["0.0.0.0/0"]  # Autoriser tout le trafic sortant
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
-
+  
   tags = {
     Name = var.web_sg_name
   }
 }
 
+# Security Group for Application Tier
 resource "aws_security_group" "app_sg" {
   vpc_id = var.vpc_id
-
+  
+  # Allow HTTP from anywhere (since we're using public subnets)
   ingress {
-    from_port       = var.app_ingress_from_port
-    to_port         = var.app_ingress_to_port
-    protocol        = var.app_ingress_protocol
-    security_groups = [aws_security_group.web_sg.id]
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
-
-  ingress {
-    from_port   = var.db_ingress_ssh_from_port
-    to_port     = var.db_ingress_ssh_to_port
-    protocol    = var.db_ingress_ssh_protocol
-    cidr_blocks = var.db_ingress_ssh_cidr_blocks
-  }
-
+  
+  # Allow HTTPS if needed
   ingress {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # Autoriser le trafic HTTPS
+    cidr_blocks = ["0.0.0.0/0"]
   }
-
+  
+  # Allow SSH for management
   ingress {
-    from_port   = -1  # ICMP
-    to_port     = -1
-    protocol    = "icmp"
-    cidr_blocks = ["0.0.0.0/0"]  # Autoriser le trafic ICMP
-  }
-
-  # Règle de sortie pour autoriser tout le trafic sortant
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"  # Tous les protocoles
-    cidr_blocks = ["0.0.0.0/0"]  # Autoriser tout le trafic sortant
-  }
-
-  tags = {
-    Name = var.app_sg_name
-  }
-}
-
-resource "aws_security_group" "db_sg" {
-  vpc_id = var.vpc_id
-
-  ingress {
-    from_port   = var.db_ingress_ssh_from_port
-    to_port     = var.db_ingress_ssh_to_port
-    protocol    = var.db_ingress_ssh_protocol
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
     cidr_blocks = var.db_ingress_ssh_cidr_blocks
   }
-
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # Autoriser le trafic HTTPS
-  }
-
-  ingress {
-    from_port   = -1  # ICMP
-    to_port     = -1
-    protocol    = "icmp"
-    cidr_blocks = ["0.0.0.0/0"]  # Autoriser le trafic ICMP
-  }
-
-  # Règle de sortie pour autoriser tout le trafic sortant par défaut
+  
+  # Allow all outbound
   egress {
     from_port   = 0
     to_port     = 0
@@ -118,6 +85,55 @@ resource "aws_security_group" "db_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  tags = {
+    Name = var.app_sg_name
+  }
+}
+
+# Security Group for Database Tier
+resource "aws_security_group" "db_sg" {
+  vpc_id = var.vpc_id
+  
+  # Allow MySQL/Aurora from App tier
+  ingress {
+    from_port       = 3306
+    to_port         = 3306
+    protocol        = "tcp"
+    security_groups = [aws_security_group.app_sg.id]
+  }
+  
+  # Allow SSH
+  ingress {
+    from_port   = var.db_ingress_ssh_from_port
+    to_port     = var.db_ingress_ssh_to_port
+    protocol    = var.db_ingress_ssh_protocol
+    cidr_blocks = var.db_ingress_ssh_cidr_blocks
+  }
+  
+  # Allow ICMP
+  ingress {
+    from_port   = -1
+    to_port     = -1
+    protocol    = "icmp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  
+  # Allow traffic between database instances (for replication)
+  ingress {
+    from_port       = 0
+    to_port         = 0
+    protocol        = "-1"
+    self            = true
+  }
+  
+  # Allow all outbound traffic
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  
   tags = {
     Name = var.db_sg_name
   }

@@ -60,6 +60,9 @@ module "app_asg" {
   source            = "./modules/app_asg"
   /*private_subnet_id_1 = module.subnets.private_subnet_id_1
   private_subnet_id_2 = module.subnets.private_subnet_id_2*/
+
+  target_group_arn = module.app_lb.target_group_arn
+
   public_subnet_id_1 = module.subnets.public_subnet_id_1
   public_subnet_id_2 = module.subnets.public_subnet_id_2
   app_sg_id         = module.security_groups.app_sg_id

@@ -23,5 +23,5 @@
     "sensitive": false,
     "type": "string",
     "value": "http://web-lb-1170919372.eu-west-3.elb.amazonaws.com"
-  }
+  },
 }

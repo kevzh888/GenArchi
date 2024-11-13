@@ -75,3 +75,8 @@ variable "db_ip_2" {
   description = "Ip de la db slave"
   default = "127.0.0.1"
 }
+
+variable "target_group_arn" {
+  description = "ARN of the target group for the ASG"
+  type        = string
+}

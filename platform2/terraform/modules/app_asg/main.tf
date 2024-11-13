@@ -1,10 +1,8 @@
-# Template de lancement pour les instances du tiers App
 resource "aws_launch_template" "app_launch_template" {
-  name_prefix   = "app-"
-  image_id      = var.app_ami_id
+  name_prefix = "app-"
+  image_id = var.app_ami_id
   instance_type = var.app_instance_type
 
-  # Les tags pour identifier les instances
   tag_specifications {
     resource_type = "instance"
     tags = {
@@ -12,66 +10,81 @@ resource "aws_launch_template" "app_launch_template" {
     }
   }
 
-  # Groupes de sécurité pour les instances
+  # Configurer l'interface réseau avec IP publique
   network_interfaces {
     associate_public_ip_address = true
-    security_groups             = [var.app_sg_id]
+    security_groups = [var.app_sg_id]
+    delete_on_termination = true
   }
 
-  # User data pour configurer l'application lors du lancement
   user_data = base64encode(<<-EOF
-              #!/bin/bash
+    #!/bin/bash
+    # Mettre à jour le système et installer nginx
+    apt-get update
+    apt-get install -y nginx
 
-              # Récupération des adresses IP des bases de données depuis le fichier JSON
-              DB_IP_1=${var.db_ip_1}
-              DB_IP_2=${var.db_ip_2}
+    # Créer une page HTML simple
+    cat > /var/www/html/index.html << 'END'
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Hello World App</title>
+    </head>
+    <body>
+        <h1>Hello World from App Server!</h1>
+        <p>Server is running successfully.</p>
+    </body>
+    </html>
+    END
 
-              # Écrire les adresses IP dans un fichier de configuration
-              echo "DB_INSTANCE_1_IP=$DB_IP_1" >> /etc/profile.d/db_env.sh
-              echo "DB_INSTANCE_2_IP=$DB_IP_2" >> /etc/profile.d/db_env.sh
+    # S'assurer que nginx est démarré et activé
+    systemctl enable nginx
+    systemctl start nginx
 
-              # Mises à jour et installation de dépendances
-              sudo apt update -y
-              sudo apt install -y nginx
-              sudo systemctl start nginx
-              # Script de déploiement de l'application peut être ajouté ici
-              EOF
+    # Configurer nginx pour écouter sur le port 80
+    cat > /etc/nginx/sites-available/default << 'END'
+    server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+        
+        root /var/www/html;
+        index index.html;
+        
+        server_name _;
+        
+        location / {
+            try_files $uri $uri/ =404;
+            add_header 'Access-Control-Allow-Origin' '*';
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+            add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range';
+        }
+    }
+    END
+
+    # Redémarrer nginx pour appliquer la configuration
+    systemctl restart nginx
+  EOF
   )
 }
 
-# Auto Scaling Group pour gérer la mise à l'échelle automatique
 resource "aws_autoscaling_group" "app_asg" {
-  desired_capacity     = var.app_desired_capacity
-  max_size             = var.app_max_size
-  min_size             = var.app_min_size
-  vpc_zone_identifier  = [var.public_subnet_id_1, var.public_subnet_id_2]
-
+  desired_capacity = var.app_desired_capacity
+  max_size = var.app_max_size
+  min_size = var.app_min_size
+  target_group_arns = [var.target_group_arn]
+  vpc_zone_identifier = [var.public_subnet_id_1, var.public_subnet_id_2]
+  
   launch_template {
-    id      = aws_launch_template.app_launch_template.id
+    id = aws_launch_template.app_launch_template.id
     version = "$Latest"
   }
-
-  # Health checks pour les instances
-  health_check_type         = "EC2"
+  
+  health_check_type = "ELB"
   health_check_grace_period = var.app_health_check_grace_period
 
   tag {
-    key                 = "Name"
-    value               = "app-asg"
+    key = "Name"
+    value = "app-asg"
     propagate_at_launch = true
-  }
-}
-
-# Politique de mise à l'échelle : Basée sur l'utilisation du CPU
-resource "aws_autoscaling_policy" "app_cpu_policy" {
-  name                   = "app-cpu-policy"
-  autoscaling_group_name = aws_autoscaling_group.app_asg.name
-  policy_type            = "TargetTrackingScaling"
-  
-  target_tracking_configuration {
-    predefined_metric_specification {
-      predefined_metric_type = "ASGAverageCPUUtilization"
-    }
-    target_value = var.app_cpu_target_value
   }
 }
