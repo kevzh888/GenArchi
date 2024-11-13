@@ -27,8 +27,8 @@ resource "aws_launch_template" "app_launch_template" {
               DB_IP_2=${var.db_ip_2}
 
               # Écrire les adresses IP dans un fichier de configuration
-              echo "export DB_INSTANCE_1_IP=$DB_IP_1" >> /etc/profile.d/db_env.sh
-              echo "export DB_INSTANCE_2_IP=$DB_IP_2" >> /etc/profile.d/db_env.sh
+              echo "DB_INSTANCE_1_IP=$DB_IP_1" >> /etc/profile.d/db_env.sh
+              echo "DB_INSTANCE_2_IP=$DB_IP_2" >> /etc/profile.d/db_env.sh
 
               # Mises à jour et installation de dépendances
               sudo apt update -y
