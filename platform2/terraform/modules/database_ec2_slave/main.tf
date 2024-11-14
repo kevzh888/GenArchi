@@ -10,35 +10,56 @@ resource "aws_instance" "db_slave_instance" {
 
   user_data = <<-EOF
               #!/bin/bash
-              sudo apt update -y
-              sudo apt install -y mysql-server
+              set -e
+
+              # Met à jour les paquets et installe MySQL
+              sudo apt-get update -y
+              sudo apt-get install -y mysql-server awscli
+
+              # Démarre et active MySQL
               sudo systemctl start mysql
               sudo systemctl enable mysql
 
-              # Configure MySQL for slave replication
+              # Configure MySQL pour la réplication en tant que slave
               sudo tee -a /etc/mysql/mysql.conf.d/mysqld.cnf > /dev/null <<EOL
-
               [mysqld]
               server-id=2
               relay_log=/var/log/mysql/mysql-relay-bin.log
               read_only=1
               EOL
 
-              # Restart MySQL to apply the configuration
               sudo systemctl restart mysql
 
-              # Set up the replication on the slave
-              mysql -u root <<EOL
+              # Configuration de la réplication MySQL pour le slave
+              sudo mysql -u root <<EOL
               CHANGE MASTER TO
                   MASTER_HOST='${var.master_public_ip}',
                   MASTER_USER='replicator',
                   MASTER_PASSWORD='arcl',
-                  MASTER_LOG_FILE='mysql-bin.000001',  # Replace with actual log file from master
-                  MASTER_LOG_POS=4;  # Replace with actual log position from master
+                  MASTER_LOG_FILE='mysql-bin.000001',  -- Remplacez avec le fichier bin réel du master
+                  MASTER_LOG_POS=4;                   -- Remplacez avec la position réelle du master
               START SLAVE;
               EOL
 
-              # Display slave status to confirm configuration
-              mysql -u root -e "SHOW SLAVE STATUS\G"
+              # Vérifie si le master est en ligne toutes les 10 secondes
+              while true; do
+                  if ! ping -c 1 ${var.master_public_ip} > /dev/null; then
+                      echo "Master down, initiating failover."
+
+                      # Récupère l'ID de cette instance
+                      INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+
+                      # Associe l'Elastic IP du master à l'instance slave
+                      aws ec2 associate-address --instance-id $INSTANCE_ID --allocation-id ${aws_eip.db_master_eip.id} --region ${var.region}
+
+                      # Change les configurations MySQL pour activer le slave en master
+                      sudo sed -i 's/read_only=1/read_only=0/' /etc/mysql/mysql.conf.d/mysqld.cnf
+                      sudo systemctl restart mysql
+                      break
+                  else
+                      echo "Master is online. Checking again in 10 seconds."
+                      sleep 10
+                  fi
+              done
               EOF
 }

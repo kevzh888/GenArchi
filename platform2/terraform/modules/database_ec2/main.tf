@@ -8,6 +8,13 @@ resource "aws_instance" "db_instance" {
     Name = var.db_instance_name
   }
 
+ # Associe l'instance master avec l'EIP lors de la création
+  provisioner "local-exec" {
+    command = <<EOT
+      aws ec2 associate-address --instance-id ${aws_instance.db_master_instance.id} --allocation-id ${var.master_eip_id} --region ${var.region}
+    EOT
+  }
+
   user_data = <<-EOF
               #!/bin/bash
               sudo apt update -y

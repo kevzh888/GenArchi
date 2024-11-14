@@ -71,7 +71,23 @@ module "app_asg" {
 }
 
 # --- Database EC2 Instance ---
-module "database_ec2" {
+
+module "database_eip" {
+  source = "./modules/database_eip"
+}
+
+module "database_asg" {
+  source = "./modules/database_asg"
+
+}
+
+module "database_nlb" {
+  source = "./modules/database_nlb"
+  instance_type = ""
+  
+}
+
+/*module "database_ec2" {
   source            = "./modules/database_ec2"
   public_subnet_id  = module.subnets.public_subnet_id_1
   db_sg_id          = module.security_groups.db_sg_id
@@ -82,7 +98,7 @@ module "database_ec2_slave" {
   public_subnet_id  = module.subnets.public_subnet_id_2
   db_sg_id          = module.security_groups.db_sg_id
   master_public_ip = module.database_ec2.db_instance_public_ip
-}
+}*/
 
 /*module "static_site" {
   source = "./modules/s3_static_site"
