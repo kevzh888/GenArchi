@@ -35,7 +35,7 @@ variable "lb_internal" {
 variable "lb_type" {
   description = "Type de Load Balancer"
   type        = string
-  default     = "application"
+  default     = "network"
 }
 
 variable "lb_tag_name" {

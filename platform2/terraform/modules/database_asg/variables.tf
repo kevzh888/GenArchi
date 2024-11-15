@@ -27,7 +27,7 @@ variable "user_data" {
 variable "desired_capacity" {
   description = "Nombre désiré d'instances dans l'Auto Scaling Group"
   type        = number
-  default     = 1
+  default     = 2
 }
 
 variable "max_size" {
@@ -65,4 +65,9 @@ variable "master_eip_id" {
 variable "master_eip_public_ip" {
   description = "Adresse IP publique de l'Elastic IP pour le master"
   type        = string
+}
+
+variable "db_sg_id" {
+  description = "Security groups du tier Database"
+  type = string
 }

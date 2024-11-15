@@ -42,7 +42,7 @@ resource "aws_instance" "db_slave_instance" {
               EOL
 
               # Vérifie si le master est en ligne toutes les 10 secondes
-              while true; do
+              while false; do
                   if ! ping -c 1 ${var.master_public_ip} > /dev/null; then
                       echo "Master down, initiating failover."
 
