@@ -76,15 +76,21 @@ module "database_eip" {
   source = "./modules/database_eip"
 }
 
-module "database_asg" {
-  source = "./modules/database_asg"
-
-}
-
 module "database_nlb" {
   source = "./modules/database_nlb"
-  instance_type = ""
-  
+  vpc_id           = module.vpc.vpc_id
+  public_subnet_id_1 = module.subnets.public_subnet_id_1
+  public_subnet_id_2 = module.subnets.public_subnet_id_2
+  db_sg_id        = module.security_groups.db_sg_id
+}
+
+module "database_asg" {
+  source = "./modules/database_asg"
+  public_subnet_id_1 = module.subnets.public_subnet_id_1
+  public_subnet_id_2 = module.subnets.private_subnet_id_2
+  target_group_arn = module.db_nlb.db_target_group_arn
+  master_eip_id = module.database_eip.master_eip_id
+  master_eip_public_ip = module.database_eip.master_eip_public_ip
 }
 
 /*module "database_ec2" {
