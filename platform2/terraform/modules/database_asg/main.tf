@@ -18,26 +18,35 @@ resource "aws_launch_template" "mysql_template" {
               echo "Starting user_data script..."
               
               # Attendre que le système soit prêt
-              while [ ! -f /var/lib/cloud/instance/boot-finished ]; do
-                echo 'Waiting for cloud-init...'
-                sleep 1
-              done
+              # while [ ! -f /var/lib/cloud/instance/boot-finished ]; do
+              #  echo 'Waiting for cloud-init...'
+              #  sleep 1
+              # done
 
               # Mettre à jour la liste des paquets
               echo "Updating package list..."
-              apt-get update
+              sudo apt-get update
+
+              # Installer les dépendances nécessaires
+              echo "Installing dependencies..."
+              sudo apt-get install -y debconf-utils unzip curl
+
+              # Installation d'AWS CLI v2
+              echo "Installing AWS CLI v2..."
+              curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+              unzip -q awscliv2.zip
+              sudo ./aws/install
               
               # Configurer mysql-server pour une installation non-interactive
               echo "Configuring MySQL installation..."
-              export DEBIAN_FRONTEND=noninteractive
-              debconf-set-selections <<< 'mysql-server mysql-server/root_password password root'
-              debconf-set-selections <<< 'mysql-server mysql-server/root_password_again password root'
+              sudo debconf-set-selections <<< "mysql-server mysql-server/root_password password root"
+              sudo debconf-set-selections <<< "mysql-server mysql-server/root_password_again password root"
               
-              # Installer MySQL et AWS CLI
-              echo "Installing MySQL and AWS CLI..."
-              apt-get install -y mysql-server awscli
+              # Installer MySQL
+              echo "Installing MySQL..."
+              sudo DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server
               if [ $? -ne 0 ]; then
-                echo "Failed to install packages"
+                echo "Failed to install MySQL"
                 exit 1
               fi
 
@@ -82,8 +91,10 @@ resource "aws_launch_template" "mysql_template" {
 
               # Configurer la réplication
               echo "Setting up replication..."
-              mysql -u root <<EOL
+              mysql -u root -proot <<EOL
               ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'root';
+              CREATE USER IF NOT EXISTS 'replicator'@'%' IDENTIFIED BY 'arcl';
+              GRANT REPLICATION SLAVE ON *.* TO 'replicator'@'%';
               FLUSH PRIVILEGES;
               CHANGE MASTER TO
                   MASTER_HOST='${var.master_eip_public_ip}',
@@ -94,18 +105,56 @@ resource "aws_launch_template" "mysql_template" {
               START SLAVE;
               EOL
 
+              # Configurer les credentials AWS
+              echo "Setting up AWS credentials..."
+              mkdir -p /root/.aws
+              cat > /root/.aws/credentials <<END
+              [default]
+              aws_access_key_id = ${var.aws_access_key}
+              aws_secret_access_key = ${var.aws_secret_key}
+              region = ${var.region}
+              END
+
               # Configurer le monitoring du master
               echo "Setting up master monitoring..."
               cat > /usr/local/bin/check-master.sh <<'SCRIPT'
               #!/bin/bash
+              export AWS_CONFIG_FILE=/root/.aws/credentials
+
               while true; do
                   if ! ping -c 1 ${var.master_eip_public_ip} > /dev/null; then
                       echo "Master down, initiating failover."
+                      # Récupérer l'ID de l'instance et le stocker dans une variable
                       INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
-                      aws ec2 associate-address --instance-id $INSTANCE_ID --allocation-id ${var.master_eip_id} --region ${var.region}
-                      sed -i 's/read_only=1/read_only=0/' /etc/mysql/mysql.conf.d/mysqld.cnf
-                      systemctl restart mysql
-                      break
+                      echo "Instance ID is: $INSTANCE_ID"
+                      
+                      if [ -z "$INSTANCE_ID" ]; then
+                          echo "Failed to get Instance ID"
+                          sleep 10
+                          continue
+                      fi
+                      
+                      # Tester la commande aws avec l'ID de l'instance
+                      echo "Testing AWS command with Instance ID: $INSTANCE_ID"
+                      /usr/local/bin/aws ec2 describe-instances --instance-ids "$INSTANCE_ID" --region "${var.region}"
+                      
+                      # Associer l'EIP
+                      echo "Attempting to associate EIP..."
+                      /usr/local/bin/aws ec2 associate-address \
+                          --instance-id "$INSTANCE_ID" \
+                          --allocation-id "${var.master_eip_id}" \
+                          --region "${var.region}" \
+                          --allow-reassociation
+                      
+                      if [ $? -eq 0 ]; then
+                          echo "Successfully associated Elastic IP"
+                          sed -i 's/read_only=1/read_only=0/' /etc/mysql/mysql.conf.d/mysqld.cnf
+                          systemctl restart mysql
+                          break
+                      else
+                          echo "Failed to associate Elastic IP"
+                          echo "AWS CLI return code: $?"
+                      fi
                   else
                       echo "Master is online. Checking again in 10 seconds."
                       sleep 10
@@ -114,7 +163,10 @@ resource "aws_launch_template" "mysql_template" {
               SCRIPT
 
               chmod +x /usr/local/bin/check-master.sh
-              nohup /usr/local/bin/check-master.sh &
+              chmod 600 /root/.aws/credentials
+
+              # Démarrer le script avec sudo pour avoir les permissions nécessaires
+              sudo nohup /usr/local/bin/check-master.sh > /var/log/check-master.log 2>&1 &
 
               echo "User data script completed"
               EOF

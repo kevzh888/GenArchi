@@ -92,6 +92,8 @@ module "database_asg" {
   master_eip_id = module.database_eip.master_eip_id
   master_eip_public_ip = module.database_eip.master_eip_public_ip
   db_sg_id = module.security_groups.db_sg_id
+  aws_access_key = var.aws_access_key
+  aws_secret_key = var.aws_secret_key
 }
 
 /*module "database_ec2" {
