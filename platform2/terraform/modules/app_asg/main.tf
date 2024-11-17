@@ -16,135 +16,88 @@ resource "aws_launch_template" "app_launch_template" {
   }
   
   user_data = base64encode(<<-EOF
-    #!/bin/bash
-    # Update and install dependencies
-    sudo apt update -y
-    sudo apt install -y curl
-    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-    sudo apt install -y nginx nodejs
+            #!/bin/bash
 
-    # Set environment variables
-    echo "export DB_INSTANCE_1_IP='${var.db_ip_1}'" >> /etc/profile.d/db_env.sh
-    echo "export DB_INSTANCE_2_IP='${var.db_ip_2}'" >> /etc/profile.d/db_env.sh
-    source /etc/profile.d/db_env.sh
+            # Log de débogage
+            exec > /tmp/user-data.log 2>&1
+            set -x
 
-    # Create application directory
-    mkdir -p /var/www/app
-    cd /var/www/app
+            # Mise à jour et installation des paquets
+            sudo apt-get update
+            sudo apt-get install -y nginx nodejs npm
 
-    # Initialize Node.js application
-    npm init -y
-    npm install express cors body-parser mysql2
+            # Création du répertoire de l'application
+            sudo mkdir -p /var/www/app
+            cd /var/www/app
 
-    # Create Express server file
-    echo 'const express = require("express");
-const cors = require("cors");
-const bodyParser = require("body-parser");
-const mysql = require("mysql2/promise");
+            # Installation des dépendances Node.js
+            npm init -y
+            npm install express cors body-parser mysql2
 
-const app = express();
-app.use(cors());
-app.use(bodyParser.json());
+            # Création du fichier serveur
+            cat > /var/www/app/server.js << 'ENDSERVER'
+            const express = require("express");
+            const cors = require("cors");
+            const bodyParser = require("body-parser");
+            const mysql = require("mysql2/promise");
 
-// Database configuration
-const dbConfig = {
-  host: process.env.DB_INSTANCE_1_IP,
-  user: "app_user",
-  password: "app_password",
-  database: "quotes_db"
-};
+            const app = express();
+            app.use(cors());
+            app.use(bodyParser.json());
 
-// Test endpoint
-app.get("/api/test", (req, res) => {
-  res.json({ message: "API is working!" });
-});
+            app.get("/api/test", (req, res) => {
+            res.json({ message: "API is working!" });
+            });
 
-// Add quote endpoint
-app.post("/api/quotes", async (req, res) => {
-  try {
-    const connection = await mysql.createConnection(dbConfig);
-    const { quote } = req.body;
-    
-    if (!quote) {
-      return res.status(400).json({ error: "Quote is required" });
-    }
+            const PORT = 3000;
+            app.listen(PORT, "0.0.0.0", () => {
+            console.log("Server running on port " + PORT);
+            });
+            ENDSERVER
 
-    await connection.execute(
-      "INSERT INTO quotes (content, created_at) VALUES (?, NOW())",
-      [quote]
-    );
+            # Configuration du service Node.js
+            cat > /etc/systemd/system/nodeapp.service << ENDSERVICE
+            [Unit]
+            Description=Node.js Quote Application
+            After=network.target
 
-    await connection.end();
-    res.status(201).json({ message: "Quote added successfully" });
-  } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
+            [Service]
+            Type=simple
+            User=ubuntu
+            WorkingDirectory=/var/www/app
+            ExecStart=/usr/bin/node server.js
+            Restart=always
 
-const PORT = 3000;
-app.listen(PORT, "0.0.0.0", () => {
-  console.log("Server running on port " + PORT);
-});' > /var/www/app/server.js
+            [Install]
+            WantedBy=multi-user.target
+            ENDSERVICE
 
-    # Create systemd service file
-    echo '[Unit]
-Description=Node.js Quote Application
-After=network.target
+            # Configuration de Nginx
+            cat > /etc/nginx/sites-available/default << 'ENDNGINX'
+            server {
+                listen 80;
+                server_name _;
 
-[Service]
-Environment=DB_INSTANCE_1_IP=${var.db_ip_1}
-Environment=DB_INSTANCE_2_IP=${var.db_ip_2}
-Type=simple
-User=root
-WorkingDirectory=/var/www/app
-ExecStart=/usr/bin/node server.js
-Restart=always
-RestartSec=10
+                location /api/ {
+                    proxy_pass http://localhost:3000;
+                    proxy_http_version 1.1;
+                    proxy_set_header Upgrade \$http_upgrade;
+                    proxy_set_header Connection "upgrade";
+                    proxy_set_header Host \$host;
+                }
+            }
+            ENDNGINX
 
-[Install]
-WantedBy=multi-user.target' > /etc/systemd/system/nodeapp.service
+            # Démarrage des services
+            sudo systemctl daemon-reload
+            sudo systemctl restart nginx
+            sudo systemctl enable nodeapp
+            sudo systemctl start nodeapp
 
-    # Configure Nginx
-    echo 'server {
-    listen 80;
-    server_name _;
-
-    location /api/ {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 90;
-        proxy_cache_bypass $http_upgrade;
-    }
-
-    location = /api {
-        return 302 /api/;
-    }
-
-    # Basic status page
-    location = /status {
-        return 200 "online";
-        add_header Content-Type text/plain;
-    }
-}' > /etc/nginx/sites-available/default
-
-    # Enable and start services
-    systemctl daemon-reload
-    systemctl enable nodeapp
-    systemctl start nodeapp
-    systemctl enable nginx
-    systemctl restart nginx
-
-    # Add some basic logging
-    echo "Installation completed at $(date)" >> /var/log/app-install.log
-    EOF
-  )
+            # Log final
+            echo "Installation completed" > /tmp/installation-complete.log
+            EOF
+            )
 }
 
 resource "aws_autoscaling_group" "app_asg" {
