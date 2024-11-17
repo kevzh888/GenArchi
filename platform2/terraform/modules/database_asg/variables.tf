@@ -84,3 +84,9 @@ variable "aws_secret_key" {
   type        = string
   sensitive   = true
 }
+
+variable "instance_name_prefix" {
+  description = "Prefix for the instance names"
+  type        = string
+  default     = "database-asg"
+}

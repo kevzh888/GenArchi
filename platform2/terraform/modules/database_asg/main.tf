@@ -17,11 +17,26 @@ resource "aws_launch_template" "mysql_template" {
               exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
               echo "Starting user_data script..."
               
-              # Attendre que le système soit prêt
-              # while [ ! -f /var/lib/cloud/instance/boot-finished ]; do
-              #  echo 'Waiting for cloud-init...'
-              #  sleep 1
-              # done
+              # Délai pour la deuxième instance
+              # Obtenir un jeton
+              TOKEN_D=$(curl -X PUT -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" -s http://169.254.169.254/latest/api/token)
+              # Utiliser le jeton pour accéder aux métadonnées
+              INSTANCE_INDEX=$(curl -H "X-aws-ec2-metadata-token: $TOKEN_D" -s http://169.254.169.254/latest/meta-data/instance-id)
+              echo "For delay Instance ID is: $INSTANCE_INDEX"
+              INSTANCE_INDEX=$(echo $INSTANCE_INDEX | awk -F '-' '{print $2}' | grep -o '[0-9]*$')
+              echo "For delay Instance Index is: $INSTANCE_INDEX"
+
+              if [ -z "$INSTANCE_INDEX" ]; then # FIXME
+                  echo "Failed to retrieve Instance Index from metadata."
+                  exit 1
+              fi
+
+              INSTANCE_INDEX=$((INSTANCE_INDEX))
+
+              if [ "\$INSTANCE_INDEX" -gt 1 ]; then
+                  echo "Delaying startup for this instance..."
+                  sleep 10
+              fi
 
               # Mettre à jour la liste des paquets
               echo "Updating package list..."
@@ -73,11 +88,13 @@ resource "aws_launch_template" "mysql_template" {
               cat >> /etc/mysql/mysql.conf.d/mysqld.cnf <<EOL
 
               [mysqld]
-              server-id=2
+              server-id=$INSTANCE_INDEX
               relay_log=/var/log/mysql/mysql-relay-bin.log
               read_only=1
               bind-address = 0.0.0.0
               EOL
+              
+              sudo sed -i 's/^bind-address[[:space:]]*=[[:space:]]*127\.0\.0\.1$/bind-address = 0.0.0.0/' /etc/mysql/mysql.conf.d/mysqld.cnf
 
               # Redémarrer MySQL pour appliquer la configuration
               echo "Restarting MySQL to apply configuration..."
@@ -124,8 +141,12 @@ resource "aws_launch_template" "mysql_template" {
               while true; do
                   if ! ping -c 1 ${var.master_eip_public_ip} > /dev/null; then
                       echo "Master down, initiating failover."
-                      # Récupérer l'ID de l'instance et le stocker dans une variable
-                      INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+                      
+                      # Obtenir un jeton
+                      TOKEN=$(curl -X PUT -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" -s http://169.254.169.254/latest/api/token)
+
+                      # Utiliser le jeton pour accéder aux métadonnées
+                      INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/instance-id)
                       echo "Instance ID is: $INSTANCE_ID"
                       
                       if [ -z "$INSTANCE_ID" ]; then
@@ -148,7 +169,7 @@ resource "aws_launch_template" "mysql_template" {
                       
                       if [ $? -eq 0 ]; then
                           echo "Successfully associated Elastic IP"
-                          sed -i 's/read_only=1/read_only=0/' /etc/mysql/mysql.conf.d/mysqld.cnf
+                          sudo sed -i 's/^read_only[[:space:]]*=[[:space:]]*1$/read_only=0/' /etc/mysql/mysql.conf.d/mysqld.cnf
                           systemctl restart mysql
                           break
                       else
