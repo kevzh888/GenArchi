@@ -16,19 +16,92 @@ resource "aws_launch_template" "web_launch_template" {
   }
 
   user_data = base64encode(<<-EOF
-              #!/bin/bash
-              # Mises à jour et installation de dépendances
-              sudo apt update -y
-              sudo apt install -y nginx
+    #!/bin/bash
+    # Update and install dependencies
+    sudo apt update -y
+    sudo apt install -y nginx
 
-              # Copie du fichier index.html
-              echo "<html><body><h1>Bienvenue sur mon site</h1></body></html>" > /var/www/html/index.html
+    # Create the index.html file with interactive elements
+    echo '<!DOCTYPE html>
+    <html>
+    <head>
+        <title>Interactive Text List</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                max-width: 800px;
+                margin: 20px auto;
+                padding: 0 20px;
+            }
+            .input-container {
+                margin: 20px 0;
+            }
+            input[type="text"] {
+                padding: 8px;
+                font-size: 16px;
+                width: 60%;
+                margin-right: 10px;
+            }
+            button {
+                padding: 8px 16px;
+                font-size: 16px;
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                cursor: pointer;
+            }
+            button:hover {
+                background-color: #45a049;
+            }
+            ul {
+                list-style-type: none;
+                padding: 0;
+            }
+            li {
+                padding: 8px;
+                margin: 4px 0;
+                background-color: #f9f9f9;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Interactive Text List</h1>
+        <div class="input-container">
+            <input type="text" id="textInput" placeholder="Enter your text here">
+            <button onclick="addText()">Add Text</button>
+        </div>
+        <ul id="textList"></ul>
 
-              # Démarrer et activer Nginx
-              sudo systemctl start nginx
-              sudo systemctl enable nginx
-              EOF
-  )
+        <script>
+            function addText() {
+                const input = document.getElementById("textInput");
+                const list = document.getElementById("textList");
+                
+                if (input.value.trim() !== "") {
+                    const li = document.createElement("li");
+                    li.textContent = input.value;
+                    list.appendChild(li);
+                    input.value = "";
+                }
+            }
+
+            // Allow adding text when pressing Enter
+            document.getElementById("textInput").addEventListener("keypress", function(e) {
+                if (e.key === "Enter") {
+                    addText();
+                }
+            });
+        </script>
+    </body>
+    </html>' > /var/www/html/index.html
+
+    # Start and enable Nginx
+    sudo systemctl start nginx
+    sudo systemctl enable nginx
+    EOF
+    )
 }
 
 resource "aws_autoscaling_group" "web_asg" {
