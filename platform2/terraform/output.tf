@@ -25,3 +25,8 @@ output "web_url" {
   value = "http://${module.web_lb.dns_name}"
   description = "L'URL du load balancer de notre site web"
 }
+
+output "app_url" {
+  value = "http://${module.app_lb.dns_name}"
+  description = "L'URL du load balancer de notre app"
+}

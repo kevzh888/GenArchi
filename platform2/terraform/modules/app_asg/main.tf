@@ -9,244 +9,148 @@ resource "aws_launch_template" "app_launch_template" {
       Name = "app-instance"
     }
   }
-
+  
   network_interfaces {
     associate_public_ip_address = true
     security_groups = [var.app_sg_id]
-    delete_on_termination = true
   }
-
+  
   user_data = base64encode(<<-EOF
-#!/bin/bash
-# Update system and install required packages
-apt-get update
-apt-get install -y nginx mysql-client python3 python3-pip
+    #!/bin/bash
+    # Update and install dependencies
+    sudo apt update -y
+    sudo apt install -y curl
+    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+    sudo apt install -y nginx nodejs
 
-# Install Python packages
-pip3 install flask flask-cors mysql-connector-python
+    # Set environment variables
+    echo "export DB_INSTANCE_1_IP='${var.db_ip_1}'" >> /etc/profile.d/db_env.sh
+    echo "export DB_INSTANCE_2_IP='${var.db_ip_2}'" >> /etc/profile.d/db_env.sh
+    source /etc/profile.d/db_env.sh
 
-# Create application directory
-mkdir -p /var/www/app
-mkdir -p /var/www/app/api
+    # Create application directory
+    mkdir -p /var/www/app
+    cd /var/www/app
 
-# Create the main HTML file
-cat > /var/www/html/index.html << 'END'
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Quotes App</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 20px;
-        }
-        h1 {
-            color: #333;
-        }
-        .quote-form {
-            margin-bottom: 20px;
-        }
-        .quote-form input {
-            padding: 10px;
-            font-size: 1rem;
-            width: 300px;
-        }
-        .quote-form button {
-            padding: 10px;
-            background-color: #28a745;
-            color: white;
-            border: none;
-            font-size: 1rem;
-            cursor: pointer;
-        }
-        .quote-form button:hover {
-            background-color: #218838;
-        }
-        ul {
-            list-style-type: none;
-            padding: 0;
-        }
-        li {
-            background-color: #fff;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #ccc;
-        }
-    </style>
-</head>
-<body>
-    <h1>Quotes App</h1>
-    <div class="quote-form">
-        <input type="text" id="new-quote" placeholder="Enter a new quote..." />
-        <button onclick="addQuote()">Add Quote</button>
-    </div>
-    <h2>Quotes List</h2>
-    <ul id="quotes-list"></ul>
-    <script>
-        // API endpoint
-        const apiUrl = '/api/quotes';
+    # Initialize Node.js application
+    npm init -y
+    npm install express cors body-parser mysql2
 
-        async function fetchQuotes() {
-            try {
-                const response = await fetch(apiUrl);
-                const quotes = await response.json();
-                const quotesList = document.getElementById("quotes-list");
-                quotesList.innerHTML = quotes
-                    .map((quote) => '<li>' + quote.quote + '</li>')
-                    .join("");
-            } catch (error) {
-                console.error("Error fetching quotes:", error);
-            }
-        }
+    # Create Express server file
+    echo 'const express = require("express");
+const cors = require("cors");
+const bodyParser = require("body-parser");
+const mysql = require("mysql2/promise");
 
-        async function addQuote() {
-            const quoteInput = document.getElementById("new-quote");
-            const newQuote = quoteInput.value;
-            if (!newQuote) {
-                alert("Please enter a quote.");
-                return;
-            }
-            try {
-                await fetch(apiUrl, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({ quote: newQuote }),
-                });
-                quoteInput.value = "";
-                fetchQuotes();
-            } catch (error) {
-                console.error("Error adding quote:", error);
-            }
-        }
+const app = express();
+app.use(cors());
+app.use(bodyParser.json());
 
-        window.onload = fetchQuotes;
-    </script>
-</body>
-</html>
-END
+// Database configuration
+const dbConfig = {
+  host: process.env.DB_INSTANCE_1_IP,
+  user: "app_user",
+  password: "app_password",
+  database: "quotes_db"
+};
 
-# Create Flask API application
-cat > /var/www/app/api/app.py << 'END'
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import mysql.connector
-import os
+// Test endpoint
+app.get("/api/test", (req, res) => {
+  res.json({ message: "API is working!" });
+});
 
-app = Flask(__name__)
-CORS(app)
-
-def get_db_connection():
-    # Read database IPs from environment
-    with open('/etc/profile.d/db_env.sh', 'r') as f:
-        env_vars = dict(line.strip().split('=') for line in f if line.strip())
+// Add quote endpoint
+app.post("/api/quotes", async (req, res) => {
+  try {
+    const connection = await mysql.createConnection(dbConfig);
+    const { quote } = req.body;
     
-    db_host = env_vars.get('DB_INSTANCE_1_IP', '').strip('"')  # Primary DB
-    
-    return mysql.connector.connect(
-        host=db_host,
-        user="your_db_user",      # Replace with your DB username
-        password="your_db_pass",  # Replace with your DB password
-        database="quotes_db"
-    )
+    if (!quote) {
+      return res.status(400).json({ error: "Quote is required" });
+    }
 
-@app.route('/api/quotes', methods=['GET'])
-def get_quotes():
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM quotes")
-    quotes = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return jsonify(quotes)
+    await connection.execute(
+      "INSERT INTO quotes (content, created_at) VALUES (?, NOW())",
+      [quote]
+    );
 
-@app.route('/api/quotes', methods=['POST'])
-def add_quote():
-    data = request.json
-    quote = data.get('quote')
-    
-    if not quote:
-        return jsonify({"error": "Quote is required"}), 400
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO quotes (quote) VALUES (%s)", (quote,))
-    conn.commit()
-    cursor.close()
-    conn.close()
-    
-    return jsonify({"message": "Quote added successfully"}), 201
+    await connection.end();
+    res.status(201).json({ message: "Quote added successfully" });
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
-END
+const PORT = 3000;
+app.listen(PORT, "0.0.0.0", () => {
+  console.log("Server running on port " + PORT);
+});' > /var/www/app/server.js
 
-# Create systemd service for Flask API
-cat > /etc/systemd/system/quotes-api.service << 'END'
-[Unit]
-Description=Quotes API Service
+    # Create systemd service file
+    echo '[Unit]
+Description=Node.js Quote Application
 After=network.target
 
 [Service]
-User=www-data
-WorkingDirectory=/var/www/app/api
-ExecStart=/usr/bin/python3 app.py
+Environment=DB_INSTANCE_1_IP=${var.db_ip_1}
+Environment=DB_INSTANCE_2_IP=${var.db_ip_2}
+Type=simple
+User=root
+WorkingDirectory=/var/www/app
+ExecStart=/usr/bin/node server.js
 Restart=always
+RestartSec=10
 
 [Install]
-WantedBy=multi-user.target
-END
+WantedBy=multi-user.target' > /etc/systemd/system/nodeapp.service
 
-# Configure nginx to proxy requests to the Flask API
-cat > /etc/nginx/sites-available/default << 'END'
-server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
-    root /var/www/html;
-    index index.html;
+    # Configure Nginx
+    echo 'server {
+    listen 80;
     server_name _;
 
-    location / {
-        try_files $uri $uri/ =404;
-    }
-
     location /api/ {
-        proxy_pass http://localhost:5000/api/;
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 90;
+        proxy_cache_bypass $http_upgrade;
     }
-}
-END
 
-# Start and enable services
-systemctl enable quotes-api
-systemctl start quotes-api
-systemctl enable nginx
-systemctl restart nginx
+    location = /api {
+        return 302 /api/;
+    }
 
-# Create database table if it doesn't exist
-mysql -h $(grep DB_INSTANCE_1_IP /etc/profile.d/db_env.sh | cut -d'"' -f2) -u your_db_user -pyour_db_pass quotes_db << 'END'
-CREATE TABLE IF NOT EXISTS quotes (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    quote TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-END
+    # Basic status page
+    location = /status {
+        return 200 "online";
+        add_header Content-Type text/plain;
+    }
+}' > /etc/nginx/sites-available/default
 
-EOF
-)
+    # Enable and start services
+    systemctl daemon-reload
+    systemctl enable nodeapp
+    systemctl start nodeapp
+    systemctl enable nginx
+    systemctl restart nginx
+
+    # Add some basic logging
+    echo "Installation completed at $(date)" >> /var/log/app-install.log
+    EOF
+  )
 }
 
 resource "aws_autoscaling_group" "app_asg" {
   desired_capacity = var.app_desired_capacity
   max_size = var.app_max_size
   min_size = var.app_min_size
-  target_group_arns = [var.target_group_arn]
   vpc_zone_identifier = [var.public_subnet_id_1, var.public_subnet_id_2]
   
   launch_template {
@@ -254,12 +158,27 @@ resource "aws_autoscaling_group" "app_asg" {
     version = "$Latest"
   }
   
-  health_check_type = "ELB"
+  target_group_arns = [var.target_group_arn]
+  
+  health_check_type = "EC2"
   health_check_grace_period = var.app_health_check_grace_period
-
+  
   tag {
     key = "Name"
     value = "app-asg"
     propagate_at_launch = true
+  }
+}
+
+resource "aws_autoscaling_policy" "app_cpu_policy" {
+  name = "app-cpu-policy"
+  autoscaling_group_name = aws_autoscaling_group.app_asg.name
+  policy_type = "TargetTrackingScaling"
+  
+  target_tracking_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ASGAverageCPUUtilization"
+    }
+    target_value = var.app_cpu_target_value
   }
 }

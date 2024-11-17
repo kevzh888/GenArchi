@@ -68,3 +68,8 @@ variable "target_group_arn" {
   description = "ARN du Target Group pour attacher l'ASG Web"
   type        = string
 }
+
+variable "app_lb_dns" {
+  description = "DNS name of the application load balancer"
+  type = string
+}

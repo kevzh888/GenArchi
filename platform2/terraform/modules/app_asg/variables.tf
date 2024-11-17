@@ -77,6 +77,6 @@ variable "db_ip_2" {
 }
 
 variable "target_group_arn" {
-  description = "ARN of the target group for the ASG"
-  type        = string
+  description = "ARN of the target group for the application load balancer"
+  type = string
 }
