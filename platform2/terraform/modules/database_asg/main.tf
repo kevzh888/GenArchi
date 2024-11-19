@@ -1,7 +1,7 @@
 # modules/asg/main.tf
 
 resource "aws_launch_template" "mysql_template" {
-  name_prefix   = "mysql-"
+  name_prefix   = "database-"
   image_id      = var.ami_id
   instance_type = var.instance_type
 
@@ -208,7 +208,7 @@ resource "aws_launch_template" "mysql_template" {
 
 resource "aws_autoscaling_group" "mysql_asg" {
   count         = var.desired_capacity
-  desired_capacity    = var.desired_capacity
+  desired_capacity    = var.desired_capacity - 1
   max_size           = var.max_size
   min_size           = var.min_size
   vpc_zone_identifier = [var.public_subnet_id_1, var.public_subnet_id_2]
