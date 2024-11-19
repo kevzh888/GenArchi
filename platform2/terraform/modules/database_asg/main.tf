@@ -16,27 +16,6 @@ resource "aws_launch_template" "mysql_template" {
               # Activer le logging détaillé
               exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
               echo "Starting user_data script..."
-              
-              # Délai pour la deuxième instance
-              # Obtenir un jeton
-              TOKEN_D=$(curl -X PUT -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" -s http://169.254.169.254/latest/api/token)
-              # Utiliser le jeton pour accéder aux métadonnées
-              INSTANCE_INDEX=$(curl -H "X-aws-ec2-metadata-token: $TOKEN_D" -s http://169.254.169.254/latest/meta-data/instance-id)
-              echo "For delay Instance ID is: $INSTANCE_INDEX"
-              INSTANCE_INDEX=$(echo $INSTANCE_INDEX | awk -F '-' '{print $2}' | grep -o '[0-9]*$')
-              echo "For delay Instance Index is: $INSTANCE_INDEX"
-
-              if [ -z "$INSTANCE_INDEX" ]; then # FIXME
-                  echo "Failed to retrieve Instance Index from metadata."
-                  exit 1
-              fi
-
-              INSTANCE_INDEX=$((INSTANCE_INDEX))
-
-              if [ "\$INSTANCE_INDEX" -gt 1 ]; then
-                  echo "Delaying startup for this instance..."
-                  sleep 10
-              fi
 
               # Mettre à jour la liste des paquets
               echo "Updating package list..."
@@ -51,6 +30,42 @@ resource "aws_launch_template" "mysql_template" {
               curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
               unzip -q awscliv2.zip
               sudo ./aws/install
+
+              # Configurer les credentials AWS
+              echo "Setting up AWS credentials..."
+              mkdir -p /root/.aws
+              cat > /root/.aws/credentials <<END
+              [default]
+              aws_access_key_id = ${var.aws_access_key}
+              aws_secret_access_key = ${var.aws_secret_key}
+              region = ${var.region}
+              END
+              
+              # Délai pour la deuxième instance
+              # Obtenir un jeton
+              TOKEN_D=$(curl -X PUT -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" -s http://169.254.169.254/latest/api/token)
+              # Utiliser le jeton pour accéder aux métadonnées
+              INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN_D" -s http://169.254.169.254/latest/meta-data/instance-id)
+              echo "For delay Instance id is: $INSTANCE_ID"
+              INSTANCE_NAME=$(aws ec2 describe-tags \
+                  --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=Name" \
+                  --query "Tags[0].Value" \
+                  --output text)              
+              echo "For delay Instance name is: $INSTANCE_NAME"
+              INSTANCE_INDEX=$(echo "$INSTANCE_NAME" | grep -o '[0-9]*$')
+              echo "For delay Instance Index is: $INSTANCE_INDEX"
+
+              if [ -z "$INSTANCE_INDEX" ]; then
+                  echo "Failed to retrieve Instance Index from metadata."
+                  exit 1
+              fi
+
+              INSTANCE_INDEX=$((INSTANCE_INDEX))
+
+              if [ "$INSTANCE_INDEX" -gt 1 ]; then
+                  echo "Delaying startup for this instance..."
+                  sleep 10
+              fi
               
               # Configurer mysql-server pour une installation non-interactive
               echo "Configuring MySQL installation..."
@@ -122,16 +137,6 @@ resource "aws_launch_template" "mysql_template" {
               START SLAVE;
               EOL
 
-              # Configurer les credentials AWS
-              echo "Setting up AWS credentials..."
-              mkdir -p /root/.aws
-              cat > /root/.aws/credentials <<END
-              [default]
-              aws_access_key_id = ${var.aws_access_key}
-              aws_secret_access_key = ${var.aws_secret_key}
-              region = ${var.region}
-              END
-
               # Configurer le monitoring du master
               echo "Setting up master monitoring..."
               cat > /usr/local/bin/check-master.sh <<'SCRIPT'
@@ -174,7 +179,7 @@ resource "aws_launch_template" "mysql_template" {
                           break
                       else
                           echo "Failed to associate Elastic IP"
-                          echo "AWS CLI return code: $?"
+                          echo "AWS CLI return code: $? "
                       fi
                   else
                       echo "Master is online. Checking again in 10 seconds."
@@ -196,12 +201,13 @@ resource "aws_launch_template" "mysql_template" {
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name = "mysql-slave"
+      Name = "database-asg"
     }
   }
 }
 
 resource "aws_autoscaling_group" "mysql_asg" {
+  count         = var.desired_capacity
   desired_capacity    = var.desired_capacity
   max_size           = var.max_size
   min_size           = var.min_size
@@ -209,13 +215,14 @@ resource "aws_autoscaling_group" "mysql_asg" {
   target_group_arns  = [var.target_group_arn]
 
   launch_template {
-    id      = aws_launch_template.mysql_template.id
+    id      = aws_launch_template.mysql_template.id  # Utiliser l'index 0 pour le premier modèle de lancement
     version = "$Latest"
   }
 
+  # Utiliser une balise pour le nom de l'instance
   tag {
     key                 = "Name"
-    value              = "database-asg"
+    value               = "database-asg-${count.index + 1}"  # Utiliser count.index ici
     propagate_at_launch = true
   }
 }
