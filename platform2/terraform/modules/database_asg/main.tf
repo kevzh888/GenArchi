@@ -215,14 +215,13 @@ resource "aws_autoscaling_group" "mysql_asg" {
   target_group_arns  = [var.target_group_arn]
 
   launch_template {
-    id      = aws_launch_template.mysql_template.id  # Utiliser l'index 0 pour le premier modèle de lancement
+    id      = aws_launch_template.mysql_template.id
     version = "$Latest"
   }
 
-  # Utiliser une balise pour le nom de l'instance
   tag {
     key                 = "Name"
-    value               = "database-asg-${count.index + 1}"  # Utiliser count.index ici
+    value               = "database-asg-${count.index + 1}"
     propagate_at_launch = true
   }
 }
