@@ -1,3 +1,4 @@
+//web_asg/main.tf
 resource "aws_launch_template" "web_launch_template" {
   name_prefix = var.launch_template_name_prefix
   image_id = var.instance_ami
@@ -19,7 +20,7 @@ resource "aws_launch_template" "web_launch_template" {
     #!/bin/bash
     # Update and install dependencies
     sudo apt update -y
-    sudo apt install -y nginx
+    sudo apt install -y nginx mysql-client
 
     # Create the index.html file with interactive elements
     echo '<!DOCTYPE html>
@@ -77,6 +78,24 @@ resource "aws_launch_template" "web_launch_template" {
           <script>
               const APP_LB_DNS = '"'"'${var.app_lb_dns}'"'"';
               
+              async function loadQuotes() {
+                  try {
+                      const response = await fetch("http://" + APP_LB_DNS + "/api/quotes");
+                      if (response.ok) {
+                          const quotes = await response.json();
+                          const list = document.getElementById("quoteList");
+                          list.innerHTML = "";
+                          quotes.forEach(quote => {
+                              const li = document.createElement("li");
+                              li.textContent = quote.text;
+                              list.appendChild(li);
+                          });
+                      }
+                  } catch (error) {
+                      console.error("Error loading quotes:", error);
+                  }
+              }
+
               async function addQuote() {
                   const input = document.getElementById("quoteInput");
                   const quote = input.value.trim();
@@ -92,11 +111,8 @@ resource "aws_launch_template" "web_launch_template" {
                           });
                           
                           if (response.ok) {
-                              const list = document.getElementById("quoteList");
-                              const li = document.createElement("li");
-                              li.textContent = quote;
-                              list.appendChild(li);
                               input.value = "";
+                              loadQuotes();  // Reload the quotes after adding
                           } else {
                               console.error("Failed to add quote");
                           }
@@ -111,6 +127,9 @@ resource "aws_launch_template" "web_launch_template" {
                       addQuote();
                   }
               });
+
+              // Load quotes when page loads
+              loadQuotes();
           </script>
       </body>
       </html>' > /var/www/html/index.html

@@ -1,3 +1,5 @@
+//app_asg/main.tf
+
 resource "aws_launch_template" "app_launch_template" {
   name_prefix = "app-"
   image_id = var.app_ami_id
@@ -16,88 +18,216 @@ resource "aws_launch_template" "app_launch_template" {
   }
   
   user_data = base64encode(<<-EOF
-            #!/bin/bash
+    #!/bin/bash
+    exec > /tmp/user-data.log 2>&1
+    set -x
+    
+    sudo apt-get update
+    sudo apt-get install -y nginx nodejs npm mysql-client net-tools
 
-            # Log de débogage
-            exec > /tmp/user-data.log 2>&1
-            set -x
+    echo "DB_INSTANCE_1_IP='${var.db_ip_1}'" >> /etc/profile.d/db_env.sh
+    echo "DB_INSTANCE_2_IP='${var.db_ip_2}'" >> /etc/profile.d/db_env.sh
+    source /etc/profile.d/db_env.sh
+    
+    sudo mkdir -p /var/www/app
+    cd /var/www/app
+    
+    npm init -y
+    npm install express cors body-parser mysql2
+    
+    cat > /var/www/app/server.js << 'ENDSERVER'
+    const express = require("express");
+    const cors = require("cors");
+    const bodyParser = require("body-parser");
+    const mysql = require("mysql2/promise");
+    const fs = require('fs');
+    const app = express();
 
-            # Mise à jour et installation des paquets
-            sudo apt-get update
-            sudo apt-get install -y nginx nodejs npm
+    app.use(cors());
+    app.use(bodyParser.json());
 
-            # Création du répertoire de l'application
-            sudo mkdir -p /var/www/app
-            cd /var/www/app
+    function getDatabaseIPs() {
+      try {
+        const envContent = fs.readFileSync('/etc/profile.d/db_env.sh', 'utf8');
+        const matches = {
+          primary: envContent.match(/DB_INSTANCE_1_IP='(.+?)'/)?.[1],
+          secondary: envContent.match(/DB_INSTANCE_2_IP='(.+?)'/)?.[1]
+        };
+        console.log('Found DB IPs:', matches);
+        if (!matches.primary) throw new Error('DB IPs not found');
+        return matches;
+      } catch (error) {
+        console.error('Error reading database IPs:', error);
+        process.exit(1);
+      }
+    }
 
-            # Installation des dépendances Node.js
-            npm init -y
-            npm install express cors body-parser mysql2
+    const dbIPs = getDatabaseIPs();
+    console.log('Using Database IPs:', dbIPs);
 
-            # Création du fichier serveur
-            cat > /var/www/app/server.js << 'ENDSERVER'
-            const express = require("express");
-            const cors = require("cors");
-            const bodyParser = require("body-parser");
-            const mysql = require("mysql2/promise");
+    const dbConfig = {
+      host: dbIPs.primary,
+      user: 'root',
+      password: 'arcl',
+      database: 'quotes_db',
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0
+    };
 
-            const app = express();
-            app.use(cors());
-            app.use(bodyParser.json());
+    const pool = mysql.createPool(dbConfig);
 
-            app.get("/api/test", (req, res) => {
-            res.json({ message: "API is working!" });
+    async function initializeDb() {
+      try {
+        console.log('Connecting to database:', dbConfig.host);
+        const connection = await pool.getConnection();
+        await connection.query('CREATE DATABASE IF NOT EXISTS quotes_db');
+        await connection.query('USE quotes_db');
+        await connection.query(`
+          CREATE TABLE IF NOT EXISTS quotes (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            text TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )
+        `);
+        connection.release();
+        console.log('Database initialized successfully');
+      } catch (error) {
+        console.error('Error initializing database:', error);
+        if (dbIPs.secondary) {
+          console.log('Attempting to connect to secondary database...');
+          dbConfig.host = dbIPs.secondary;
+          await initializeDb();
+        }
+      }
+    }
+
+    initializeDb();
+
+    app.get("/api/test", (req, res) => {
+      res.json({ 
+        message: "API is working!", 
+        dbConfig: { 
+          host: dbConfig.host,
+          database: dbConfig.database
+        }
+      });
+    });
+
+    app.get("/api/quotes", async (req, res) => {
+      try {
+        const [rows] = await pool.query('SELECT * FROM quotes ORDER BY created_at DESC');
+        res.json(rows);
+      } catch (error) {
+        console.error('Error fetching quotes:', error);
+        if (dbIPs.secondary && dbConfig.host !== dbIPs.secondary) {
+          dbConfig.host = dbIPs.secondary;
+          try {
+            const [rows] = await pool.query('SELECT * FROM quotes ORDER BY created_at DESC');
+            res.json(rows);
+          } catch (secondaryError) {
+            res.status(500).json({ 
+              error: 'Failed to fetch quotes from both databases',
+              details: error.message 
             });
+          }
+        } else {
+          res.status(500).json({ 
+            error: 'Failed to fetch quotes',
+            details: error.message 
+          });
+        }
+      }
+    });
 
-            const PORT = 3000;
-            app.listen(PORT, "0.0.0.0", () => {
-            console.log("Server running on port " + PORT);
+    app.post("/api/quotes", async (req, res) => {
+      const { quote } = req.body;
+      
+      if (!quote) {
+        return res.status(400).json({ error: 'Quote text is required' });
+      }
+
+      try {
+        console.log('Adding quote:', quote);
+        const [result] = await pool.query(
+          'INSERT INTO quotes (text) VALUES (?)',
+          [quote]
+        );
+        console.log('Quote added successfully:', result);
+        res.status(201).json({ id: result.insertId, text: quote });
+      } catch (error) {
+        console.error('Error adding quote:', error);
+        if (dbIPs.secondary && dbConfig.host !== dbIPs.secondary) {
+          dbConfig.host = dbIPs.secondary;
+          try {
+            const [result] = await pool.query(
+              'INSERT INTO quotes (text) VALUES (?)',
+              [quote]
+            );
+            res.status(201).json({ id: result.insertId, text: quote });
+          } catch (secondaryError) {
+            res.status(500).json({ 
+              error: 'Failed to add quote to both databases',
+              details: error.message 
             });
-            ENDSERVER
+          }
+        } else {
+          res.status(500).json({ 
+            error: 'Failed to add quote',
+            details: error.message 
+          });
+        }
+      }
+    });
 
-            # Configuration du service Node.js
-            cat > /etc/systemd/system/nodeapp.service << ENDSERVICE
-            [Unit]
-            Description=Node.js Quote Application
-            After=network.target
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on port` + PORT);
+    });
+    ENDSERVER
 
-            [Service]
-            Type=simple
-            User=ubuntu
-            WorkingDirectory=/var/www/app
-            ExecStart=/usr/bin/node server.js
-            Restart=always
+    sudo chown -R ubuntu:ubuntu /var/www/app
+    
+    cat > /etc/systemd/system/nodeapp.service << 'ENDSERVICE'
+    [Unit]
+    Description=Node.js Quote Application
+    After=network.target
 
-            [Install]
-            WantedBy=multi-user.target
-            ENDSERVICE
+    [Service]
+    Type=simple
+    User=ubuntu
+    WorkingDirectory=/var/www/app
+    ExecStart=/usr/bin/node server.js
+    Restart=always
+    Environment=NODE_ENV=production
 
-            # Configuration de Nginx
-            cat > /etc/nginx/sites-available/default << 'ENDNGINX'
-            server {
-                listen 80;
-                server_name _;
+    [Install]
+    WantedBy=multi-user.target
+    ENDSERVICE
 
-                location /api/ {
-                    proxy_pass http://localhost:3000;
-                    proxy_http_version 1.1;
-                    proxy_set_header Upgrade \$http_upgrade;
-                    proxy_set_header Connection "upgrade";
-                    proxy_set_header Host \$host;
-                }
-            }
-            ENDNGINX
+    cat > /etc/nginx/sites-available/default << 'ENDNGINX'
+    server {
+        listen 80;
+        server_name _;
+        
+        location /api/ {
+            proxy_pass http://localhost:3000;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade \$http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host \$host;
+        }
+    }
+    ENDNGINX
 
-            # Démarrage des services
-            sudo systemctl daemon-reload
-            sudo systemctl restart nginx
-            sudo systemctl enable nodeapp
-            sudo systemctl start nodeapp
-
-            # Log final
-            echo "Installation completed" > /tmp/installation-complete.log
-            EOF
-            )
+    sudo systemctl daemon-reload
+    sudo systemctl enable nodeapp
+    sudo systemctl start nodeapp
+    sudo systemctl restart nginx
+    
+    echo "Installation completed" > /tmp/installation-complete.log
+    EOF
+  )
 }
 
 resource "aws_autoscaling_group" "app_asg" {
