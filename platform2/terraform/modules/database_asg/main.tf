@@ -44,7 +44,6 @@ resource "aws_launch_template" "mysql_template" {
               # Délai pour la deuxième instance
               # Obtenir un jeton
               TOKEN_D=$(curl -X PUT -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" -s http://169.254.169.254/latest/api/token)
-              # Utiliser le jeton pour accéder aux métadonnées
               INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN_D" -s http://169.254.169.254/latest/meta-data/instance-id)
               echo "For delay Instance id is: $INSTANCE_ID"
               INSTANCE_NAME=$(aws ec2 describe-tags \
@@ -64,7 +63,7 @@ resource "aws_launch_template" "mysql_template" {
 
               if [ "$INSTANCE_INDEX" -gt 1 ]; then
                   echo "Delaying startup for this instance..."
-                  sleep 10
+                  sleep 60
               fi
               
               # Configurer mysql-server pour une installation non-interactive
@@ -150,22 +149,9 @@ resource "aws_launch_template" "mysql_template" {
                       # Obtenir un jeton
                       TOKEN=$(curl -X PUT -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" -s http://169.254.169.254/latest/api/token)
 
-                      # Utiliser le jeton pour accéder aux métadonnées
                       INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/instance-id)
                       echo "Instance ID is: $INSTANCE_ID"
                       
-                      if [ -z "$INSTANCE_ID" ]; then
-                          echo "Failed to get Instance ID"
-                          sleep 10
-                          continue
-                      fi
-                      
-                      # Tester la commande aws avec l'ID de l'instance
-                      echo "Testing AWS command with Instance ID: $INSTANCE_ID"
-                      /usr/local/bin/aws ec2 describe-instances --instance-ids "$INSTANCE_ID" --region "${var.region}"
-                      
-                      # Associer l'EIP
-                      echo "Attempting to associate EIP..."
                       /usr/local/bin/aws ec2 associate-address \
                           --instance-id "$INSTANCE_ID" \
                           --allocation-id "${var.master_eip_id}" \
@@ -173,13 +159,14 @@ resource "aws_launch_template" "mysql_template" {
                           --allow-reassociation
                       
                       if [ $? -eq 0 ]; then
-                          echo "Successfully associated Elastic IP"
+                          echo "EIP associated. Promoting to master."
+                          mysql -u root -proot -e "STOP SLAVE; RESET SLAVE ALL;"
                           sudo sed -i 's/^read_only[[:space:]]*=[[:space:]]*1$/read_only=0/' /etc/mysql/mysql.conf.d/mysqld.cnf
                           systemctl restart mysql
                           break
                       else
-                          echo "Failed to associate Elastic IP"
-                          echo "AWS CLI return code: $? "
+                          echo "Failed to associate EIP."
+                          sleep 10
                       fi
                   else
                       echo "Master is online. Checking again in 10 seconds."
@@ -191,7 +178,7 @@ resource "aws_launch_template" "mysql_template" {
               chmod +x /usr/local/bin/check-master.sh
               chmod 600 /root/.aws/credentials
 
-              # Démarrer le script avec sudo pour avoir les permissions nécessaires
+              # Démarrer le script de monitoring
               sudo nohup /usr/local/bin/check-master.sh > /var/log/check-master.log 2>&1 &
 
               echo "User data script completed"
