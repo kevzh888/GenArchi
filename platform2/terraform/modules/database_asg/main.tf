@@ -104,7 +104,7 @@ resource "aws_launch_template" "mysql_template" {
               [mysqld]
               server-id=$INSTANCE_INDEX
               relay_log=/var/log/mysql/mysql-relay-bin.log
-              read_only=1
+              read_only=true
               bind-address = 0.0.0.0
               EOL
               
@@ -113,6 +113,7 @@ resource "aws_launch_template" "mysql_template" {
               # Redémarrer MySQL pour appliquer la configuration
               echo "Restarting MySQL to apply configuration..."
               systemctl restart mysql
+              sudo service mysql restart
               
               # Attendre que MySQL soit complètement démarré
               echo "Waiting for MySQL to be ready..."
@@ -161,8 +162,9 @@ resource "aws_launch_template" "mysql_template" {
                       if [ $? -eq 0 ]; then
                           echo "EIP associated. Promoting to master."
                           mysql -u root -proot -e "STOP SLAVE; RESET SLAVE ALL;"
-                          sudo sed -i 's/^read_only[[:space:]]*=[[:space:]]*1$/read_only=0/' /etc/mysql/mysql.conf.d/mysqld.cnf
+                          sudo sed -i 's/^read_only[[:space:]]*=[[:space:]]*true$/#read_only=true/' /etc/mysql/mysql.conf.d/mysqld.cnf
                           systemctl restart mysql
+                          sudo service mysql restart
                           break
                       else
                           echo "Failed to associate EIP."
