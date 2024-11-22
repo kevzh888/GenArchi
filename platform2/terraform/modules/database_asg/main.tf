@@ -19,11 +19,11 @@ resource "aws_launch_template" "mysql_template" {
 
               # Mettre à jour la liste des paquets
               echo "Updating package list..."
-              sudo apt-get update
+              sudo apt-get update -y > /dev/null 2>&1
 
               # Installer les dépendances nécessaires
               echo "Installing dependencies..."
-              sudo apt-get install -y debconf-utils unzip curl
+              sudo apt-get install -y debconf-utils unzip curl > /dev/null 2>&1
 
               # Installation d'AWS CLI v2
               echo "Installing AWS CLI v2..."
@@ -121,8 +121,23 @@ resource "aws_launch_template" "mysql_template" {
                 sleep 1
               done
 
+              echo "Checking if master is available..."
+              if mysql -u root -proot -e "SHOW MASTER STATUS\G" &>/dev/null; then
+                  echo "Master is available, retrieving replication log status..."
+                  MASTER_STATUS=$(mysql -h ${var.master_eip_public_ip} -P 3306 -u replicator -parcl -e "SHOW MASTER STATUS\G")
+                  MASTER_LOG_FILE=$(echo "$MASTER_STATUS" | grep 'File' | awk '{print $2}')
+                  MASTER_LOG_POS=$(echo "$MASTER_STATUS" | grep 'Position' | awk '{print $2}')
+              else
+                  echo "Master is not available, using default values..."
+                  MASTER_LOG_FILE="mysql-bin.000001"
+                  MASTER_LOG_POS=4
+              fi
+              echo "Master Log File: $MASTER_LOG_FILE"
+              echo "Master Log Position: $MASTER_LOG_POS"
+
               # Configurer la réplication
               echo "Setting up replication..."
+
               mysql -u root -proot <<EOL
               ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'root';
               CREATE USER IF NOT EXISTS 'replicator'@'%' IDENTIFIED BY 'arcl';
@@ -132,8 +147,8 @@ resource "aws_launch_template" "mysql_template" {
                   MASTER_HOST='${var.master_eip_public_ip}',
                   MASTER_USER='replicator',
                   MASTER_PASSWORD='arcl',
-                  MASTER_LOG_FILE='mysql-bin.000001',
-                  MASTER_LOG_POS=4;
+                  MASTER_LOG_FILE='$MASTER_LOG_FILE',
+                  MASTER_LOG_POS=$MASTER_LOG_POS;
               START SLAVE;
               EOL
 
