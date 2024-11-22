@@ -22,19 +22,23 @@ resource "aws_launch_template" "app_launch_template" {
     exec > /tmp/user-data.log 2>&1
     set -x
     
+    # Update and install dependencies
     sudo apt-get update
-    sudo apt-get install -y nginx nodejs npm mysql-client net-tools
+    sudo apt-get install -y nginx nodejs npm
 
     echo "DB_INSTANCE_1_IP='${var.db_ip_1}'" >> /etc/profile.d/db_env.sh
     echo "DB_INSTANCE_2_IP='${var.db_ip_2}'" >> /etc/profile.d/db_env.sh
     source /etc/profile.d/db_env.sh
     
+    # Create application directory
     sudo mkdir -p /var/www/app
     cd /var/www/app
     
+    # Initialize npm and install dependencies
     npm init -y
     npm install express cors body-parser mysql2
     
+    # Create server.js
     cat > /var/www/app/server.js << 'ENDSERVER'
     const express = require("express");
     const cors = require("cors");
@@ -53,22 +57,18 @@ resource "aws_launch_template" "app_launch_template" {
           primary: envContent.match(/DB_INSTANCE_1_IP='(.+?)'/)?.[1],
           secondary: envContent.match(/DB_INSTANCE_2_IP='(.+?)'/)?.[1]
         };
-        console.log('Found DB IPs:', matches);
-        if (!matches.primary) throw new Error('DB IPs not found');
         return matches;
       } catch (error) {
         console.error('Error reading database IPs:', error);
-        process.exit(1);
+        return { primary: 'localhost', secondary: 'localhost' };
       }
     }
 
     const dbIPs = getDatabaseIPs();
-    console.log('Using Database IPs:', dbIPs);
 
     const dbConfig = {
       host: dbIPs.primary,
       user: 'root',
-      password: 'arcl',
       database: 'quotes_db',
       waitForConnections: true,
       connectionLimit: 10,
@@ -79,7 +79,6 @@ resource "aws_launch_template" "app_launch_template" {
 
     async function initializeDb() {
       try {
-        console.log('Connecting to database:', dbConfig.host);
         const connection = await pool.getConnection();
         await connection.query('CREATE DATABASE IF NOT EXISTS quotes_db');
         await connection.query('USE quotes_db');
@@ -105,13 +104,7 @@ resource "aws_launch_template" "app_launch_template" {
     initializeDb();
 
     app.get("/api/test", (req, res) => {
-      res.json({ 
-        message: "API is working!", 
-        dbConfig: { 
-          host: dbConfig.host,
-          database: dbConfig.database
-        }
-      });
+      res.json({ message: "API is working!" });
     });
 
     app.get("/api/quotes", async (req, res) => {
@@ -126,16 +119,10 @@ resource "aws_launch_template" "app_launch_template" {
             const [rows] = await pool.query('SELECT * FROM quotes ORDER BY created_at DESC');
             res.json(rows);
           } catch (secondaryError) {
-            res.status(500).json({ 
-              error: 'Failed to fetch quotes from both databases',
-              details: error.message 
-            });
+            res.status(500).json({ error: 'Failed to fetch quotes from both databases' });
           }
         } else {
-          res.status(500).json({ 
-            error: 'Failed to fetch quotes',
-            details: error.message 
-          });
+          res.status(500).json({ error: 'Failed to fetch quotes' });
         }
       }
     });
@@ -148,12 +135,10 @@ resource "aws_launch_template" "app_launch_template" {
       }
 
       try {
-        console.log('Adding quote:', quote);
         const [result] = await pool.query(
           'INSERT INTO quotes (text) VALUES (?)',
           [quote]
         );
-        console.log('Quote added successfully:', result);
         res.status(201).json({ id: result.insertId, text: quote });
       } catch (error) {
         console.error('Error adding quote:', error);
@@ -166,16 +151,10 @@ resource "aws_launch_template" "app_launch_template" {
             );
             res.status(201).json({ id: result.insertId, text: quote });
           } catch (secondaryError) {
-            res.status(500).json({ 
-              error: 'Failed to add quote to both databases',
-              details: error.message 
-            });
+            res.status(500).json({ error: 'Failed to add quote to both databases' });
           }
         } else {
-          res.status(500).json({ 
-            error: 'Failed to add quote',
-            details: error.message 
-          });
+          res.status(500).json({ error: 'Failed to add quote' });
         }
       }
     });
@@ -186,8 +165,10 @@ resource "aws_launch_template" "app_launch_template" {
     });
     ENDSERVER
 
+    # Set proper permissions
     sudo chown -R ubuntu:ubuntu /var/www/app
     
+    # Create systemd service
     cat > /etc/systemd/system/nodeapp.service << 'ENDSERVICE'
     [Unit]
     Description=Node.js Quote Application
@@ -205,6 +186,7 @@ resource "aws_launch_template" "app_launch_template" {
     WantedBy=multi-user.target
     ENDSERVICE
 
+    # Configure Nginx
     cat > /etc/nginx/sites-available/default << 'ENDNGINX'
     server {
         listen 80;
@@ -220,11 +202,13 @@ resource "aws_launch_template" "app_launch_template" {
     }
     ENDNGINX
 
+    # Start services
     sudo systemctl daemon-reload
     sudo systemctl enable nodeapp
     sudo systemctl start nodeapp
     sudo systemctl restart nginx
     
+    # Log completion
     echo "Installation completed" > /tmp/installation-complete.log
     EOF
   )
