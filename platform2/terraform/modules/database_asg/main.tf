@@ -122,7 +122,7 @@ resource "aws_launch_template" "mysql_template" {
               done
 
               echo "Checking if master is available..."
-              if mysql -u root -proot -e "SHOW MASTER STATUS\G" &>/dev/null; then
+              if mysql -h ${var.master_eip_public_ip} -P 3306 -u replicator -parcl -e "SHOW MASTER STATUS\G" &>/dev/null; then
                   echo "Master is available, retrieving replication log status..."
                   MASTER_STATUS=$(mysql -h ${var.master_eip_public_ip} -P 3306 -u replicator -parcl -e "SHOW MASTER STATUS\G")
                   MASTER_LOG_FILE=$(echo "$MASTER_STATUS" | grep 'File' | awk '{print $2}')
@@ -140,15 +140,25 @@ resource "aws_launch_template" "mysql_template" {
 
               mysql -u root -proot <<EOL
               ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'root';
-              CREATE USER IF NOT EXISTS 'replicator'@'%' IDENTIFIED BY 'arcl';
-              GRANT REPLICATION SLAVE ON *.* TO 'replicator'@'%';
+              
+              -- Création de l'utilisateur 'replicator' avec les privilèges nécessaires
+              CREATE USER IF NOT EXISTS 'replicator'@'%' IDENTIFIED WITH mysql_native_password BY 'arcl';
+
+              -- Accorder les privilèges REPLICATION SLAVE et REPLICATION CLIENT
+              GRANT REPLICATION CLIENT, REPLICATION SLAVE ON *.* TO 'replicator'@'%';
+
+              -- Appliquer les changements de privilèges
               FLUSH PRIVILEGES;
+
+              -- Configurer la réplication en utilisant les informations du master
               CHANGE MASTER TO
                   MASTER_HOST='${var.master_eip_public_ip}',
                   MASTER_USER='replicator',
                   MASTER_PASSWORD='arcl',
                   MASTER_LOG_FILE='$MASTER_LOG_FILE',
                   MASTER_LOG_POS=$MASTER_LOG_POS;
+
+              -- Démarrer la réplication sur le slave
               START SLAVE;
               EOL
 
