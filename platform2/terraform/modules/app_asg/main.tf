@@ -50,25 +50,10 @@ resource "aws_launch_template" "app_launch_template" {
     app.use(cors());
     app.use(bodyParser.json());
 
-    function getDatabaseIPs() {
-      try {
-        const envContent = fs.readFileSync('/etc/profile.d/db_env.sh', 'utf8');
-        const matches = {
-          primary: envContent.match(/DB_INSTANCE_1_IP='(.+?)'/)?.[1],
-          secondary: envContent.match(/DB_INSTANCE_2_IP='(.+?)'/)?.[1]
-        };
-        return matches;
-      } catch (error) {
-        console.error('Error reading database IPs:', error);
-        return { primary: 'localhost', secondary: 'localhost' };
-      }
-    }
-
-    const dbIPs = getDatabaseIPs();
-
     const dbConfig = {
-      host: dbIPs.primary,
-      user: 'root',
+      host: 'localhost',
+      user: 'nodeapp',
+      password: 'arcl'
       database: 'quotes_db',
       waitForConnections: true,
       connectionLimit: 10,
@@ -80,8 +65,6 @@ resource "aws_launch_template" "app_launch_template" {
     async function initializeDb() {
       try {
         const connection = await pool.getConnection();
-        await connection.query('CREATE DATABASE IF NOT EXISTS quotes_db');
-        await connection.query('USE quotes_db');
         await connection.query(`
           CREATE TABLE IF NOT EXISTS quotes (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -93,11 +76,6 @@ resource "aws_launch_template" "app_launch_template" {
         console.log('Database initialized successfully');
       } catch (error) {
         console.error('Error initializing database:', error);
-        if (dbIPs.secondary) {
-          console.log('Attempting to connect to secondary database...');
-          dbConfig.host = dbIPs.secondary;
-          await initializeDb();
-        }
       }
     }
 
@@ -113,17 +91,7 @@ resource "aws_launch_template" "app_launch_template" {
         res.json(rows);
       } catch (error) {
         console.error('Error fetching quotes:', error);
-        if (dbIPs.secondary && dbConfig.host !== dbIPs.secondary) {
-          dbConfig.host = dbIPs.secondary;
-          try {
-            const [rows] = await pool.query('SELECT * FROM quotes ORDER BY created_at DESC');
-            res.json(rows);
-          } catch (secondaryError) {
-            res.status(500).json({ error: 'Failed to fetch quotes from both databases' });
-          }
-        } else {
-          res.status(500).json({ error: 'Failed to fetch quotes' });
-        }
+        res.status(500).json({ error: 'Failed to fetch quotes' });
       }
     });
 
@@ -142,20 +110,7 @@ resource "aws_launch_template" "app_launch_template" {
         res.status(201).json({ id: result.insertId, text: quote });
       } catch (error) {
         console.error('Error adding quote:', error);
-        if (dbIPs.secondary && dbConfig.host !== dbIPs.secondary) {
-          dbConfig.host = dbIPs.secondary;
-          try {
-            const [result] = await pool.query(
-              'INSERT INTO quotes (text) VALUES (?)',
-              [quote]
-            );
-            res.status(201).json({ id: result.insertId, text: quote });
-          } catch (secondaryError) {
-            res.status(500).json({ error: 'Failed to add quote to both databases' });
-          }
-        } else {
-          res.status(500).json({ error: 'Failed to add quote' });
-        }
+        res.status(500).json({ error: 'Failed to add quote' });
       }
     });
 
