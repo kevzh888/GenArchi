@@ -170,3 +170,5 @@ changelogs/.plugin-cache.yaml
 .ansible-test-timeout.json
 # scripts
 setup_credential.sh
+
+_output.json
