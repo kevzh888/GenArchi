@@ -53,7 +53,7 @@ resource "aws_launch_template" "app_launch_template" {
     const dbConfig = {
       host: 'localhost',
       user: 'nodeapp',
-      password: 'arcl'
+      password: 'arcl',
       database: 'quotes_db',
       waitForConnections: true,
       connectionLimit: 10,
