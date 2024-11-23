@@ -22,6 +22,7 @@ resource "aws_launch_template" "app_launch_template" {
     # Mettre à jour le système et installer nginx
     apt-get update
     apt-get install -y nginx
+    apt-get install -y python3.6
 
     # Créer une page HTML simple
     cat > /var/www/html/index.html << 'END'
@@ -36,6 +37,40 @@ resource "aws_launch_template" "app_launch_template" {
     </body>
     </html>
     END
+
+    # Créer le fichier pour stress tester l'app
+    cat > /usr/local/bin/stressTester.py << 'SCRIPT'
+    import concurrent.futures
+    import time
+    import math
+
+    def cpu_intensive_task(duration):
+      end_time = time.time() + duration
+      result = 0
+      while time.time() < end_time:
+        result += math.factorial(100)
+      return result
+
+    def stress_test(cpu_cores, duration):
+      print(f"Starting CPU stress test with {cpu_cores} cores for {duration} seconds...")
+      start_time = time.time()
+        
+      with concurrent.futures.ThreadPoolExecutor(max_workers=cpu_cores) as executor:
+        futures = [executor.submit(cpu_intensive_task, duration) for _ in range(cpu_cores)]
+        concurrent.futures.wait(futures)
+
+      elapsed_time = time.time() - start_time
+      print(f"Stress test completed in {elapsed_time:.2f} seconds.")
+
+    if __name__ == "__main__":
+      cpu_cores = int(input("Enter the number of CPU cores to stress: "))
+      duration = int(input("Enter the duration of the stress test in seconds: "))
+        
+      stress_test(cpu_cores, duration)
+    SCRIPT
+
+    # Make the stressTester.py file executable
+    chmod +x /usr/local/bin/stressTester.py
 
     # S'assurer que nginx est démarré et activé
     systemctl enable nginx
@@ -86,5 +121,17 @@ resource "aws_autoscaling_group" "app_asg" {
     key = "Name"
     value = "app-asg"
     propagate_at_launch = true
+  }
+}
+
+resource "aws_autoscaling_policy" "cpu_target_scaling" {
+  name                   = "cpu-scaling-policy"
+  autoscaling_group_name = aws_autoscaling_group.app_asg.name
+  policy_type            = "TargetTrackingScaling"
+  target_tracking_configuration {
+    predefined_metric_specification {
+      predefined_metric_type = "ASGAverageCPUUtilization"
+    }
+    target_value = 75.0
   }
 }
