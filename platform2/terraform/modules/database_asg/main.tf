@@ -181,6 +181,10 @@ resource "aws_launch_template" "mysql_template" {
               -- Accorder les privilèges REPLICATION SLAVE et REPLICATION CLIENT
               GRANT REPLICATION CLIENT, REPLICATION SLAVE, LOCK TABLES, SHOW VIEW, RELOAD, PROCESS, SELECT ON *.* TO 'replicator'@'%' WITH GRANT OPTION;
 
+              -- User nodeapp utilisé par le tier app
+              CREATE USER IF NOT EXISTS 'nodeapp'@'%'IDENTIFIED BY 'arcl';
+              GRANT ALL PRIVILEGES ON quotes_db.* TO 'nodeapp'@'%';
+
               -- Appliquer les changements de privilèges
               FLUSH PRIVILEGES;
 
