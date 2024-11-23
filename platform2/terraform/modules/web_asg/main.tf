@@ -22,117 +22,147 @@ resource "aws_launch_template" "web_launch_template" {
     sudo apt update -y
     sudo apt install -y nginx mysql-client
 
-    # Create the index.html file with interactive elements
+    # Create the index.html file with the new design
     echo '<!DOCTYPE html>
-      <html>
-      <head>
-          <title>Quote List</title>
-          <style>
-              body {
-                  font-family: Arial, sans-serif;
-                  max-width: 800px;
-                  margin: 20px auto;
-                  padding: 0 20px;
-              }
-              .input-container {
-                  margin: 20px 0;
-              }
-              input[type="text"] {
-                  padding: 8px;
-                  font-size: 16px;
-                  width: 60%;
-                  margin-right: 10px;
-              }
-              button {
-                  padding: 8px 16px;
-                  font-size: 16px;
-                  background-color: #4CAF50;
-                  color: white;
-                  border: none;
-                  cursor: pointer;
-              }
-              button:hover {
-                  background-color: #45a049;
-              }
-              ul {
-                  list-style-type: none;
-                  padding: 0;
-              }
-              li {
-                  padding: 8px;
-                  margin: 4px 0;
-                  background-color: #f9f9f9;
-                  border: 1px solid #ddd;
-                  border-radius: 4px;
-              }
-          </style>
-      </head>
-      <body>
-          <h1>Quote List</h1>
-          <div class="input-container">
-              <input type="text" id="quoteInput" placeholder="Enter your quote here">
-              <button onclick="addQuote()">Add Quote</button>
-          </div>
-          <ul id="quoteList"></ul>
+    <html>
+    <head>
+        <title>Quote List</title>
+        <style>
+            body {
+                font-family: "Helvetica Neue", Arial, sans-serif;
+                background-color: #e0f7fa;
+                margin: 0;
+                padding: 20px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            h1 {
+                color: #00796b;
+                font-size: 2.5rem;
+                margin-bottom: 20px;
+            }
+            
+            .input-container {
+                margin-bottom: 20px;
+                display: flex;
+                gap: 10px;
+            }
+            
+            input[type="text"] {
+                padding: 10px;
+                font-size: 1rem;
+                width: 300px;
+                border: 1px solid #00796b;
+                border-radius: 5px;
+            }
+            
+            button {
+                padding: 10px 20px;
+                background-color: #00796b;
+                color: white;
+                border: none;
+                font-size: 1rem;
+                cursor: pointer;
+                border-radius: 5px;
+                transition: background-color 0.3s ease;
+            }
+            
+            button:hover {
+                background-color: #004d40;
+            }
+            
+            h2 {
+                color: #004d40;
+                font-size: 2rem;
+                margin-bottom: 10px;
+            }
+            
+            ul {
+                list-style-type: none;
+                padding: 0;
+                width: 100%;
+                max-width: 600px;
+            }
+            
+            li {
+                background-color: #ffffff;
+                padding: 15px;
+                margin-bottom: 10px;
+                border: 1px solid #00796b;
+                border-radius: 5px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Quotes App</h1>
+        <div class="input-container">
+            <input type="text" id="quoteInput" placeholder="Enter a new quote...">
+            <button onclick="addQuote()">Add Quote</button>
+        </div>
+        <h2>Quotes List</h2>
+        <ul id="quoteList"></ul>
 
-          <script>
-              const APP_LB_DNS = '"'"'${var.app_lb_dns}'"'"';
-              
-              async function loadQuotes() {
-                  try {
-                      const response = await fetch("http://" + APP_LB_DNS + "/api/quotes");
-                      if (response.ok) {
-                          const quotes = await response.json();
-                          const list = document.getElementById("quoteList");
-                          list.innerHTML = "";
-                          quotes.forEach(quote => {
-                              const li = document.createElement("li");
-                              li.textContent = quote.text;
-                              list.appendChild(li);
-                          });
-                      }
-                  } catch (error) {
-                      console.error("Error loading quotes:", error);
-                  }
-              }
+        <script>
+            const APP_LB_DNS = '"'"'${var.app_lb_dns}'"'"';
+            
+            async function loadQuotes() {
+                try {
+                    const response = await fetch("http://" + APP_LB_DNS + "/api/quotes");
+                    if (response.ok) {
+                        const quotes = await response.json();
+                        const list = document.getElementById("quoteList");
+                        list.innerHTML = "";
+                        quotes.forEach(quote => {
+                            const li = document.createElement("li");
+                            li.textContent = quote.text;
+                            list.appendChild(li);
+                        });
+                    }
+                } catch (error) {
+                    console.error("Error loading quotes:", error);
+                }
+            }
 
-              async function addQuote() {
-                  const input = document.getElementById("quoteInput");
-                  const quote = input.value.trim();
-                  
-                  if (quote !== "") {
-                      try {
-                          const response = await fetch("http://" + APP_LB_DNS + "/api/quotes", {
-                              method: "POST",
-                              headers: {
-                                  "Content-Type": "application/json",
-                              },
-                              body: JSON.stringify({ quote: quote })
-                          });
-                          
-                          if (response.ok) {
-                              input.value = "";
-                              loadQuotes();  // Reload the quotes after adding
-                          } else {
-                              console.error("Failed to add quote");
-                          }
-                      } catch (error) {
-                          console.error("Error:", error);
-                      }
-                  }
-              }
+            async function addQuote() {
+                const input = document.getElementById("quoteInput");
+                const quote = input.value.trim();
+                
+                if (quote !== "") {
+                    try {
+                        const response = await fetch("http://" + APP_LB_DNS + "/api/quotes", {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({ quote: quote })
+                        });
+                        
+                        if (response.ok) {
+                            input.value = "";
+                            loadQuotes();  // Reload the quotes after adding
+                        } else {
+                            console.error("Failed to add quote");
+                        }
+                    } catch (error) {
+                        console.error("Error:", error);
+                    }
+                }
+            }
 
-              document.getElementById("quoteInput").addEventListener("keypress", function(e) {
-                  if (e.key === "Enter") {
-                      addQuote();
-                  }
-              });
+            document.getElementById("quoteInput").addEventListener("keypress", function(e) {
+                if (e.key === "Enter") {
+                    addQuote();
+                }
+            });
 
-              // Load quotes when page loads
-              loadQuotes();
-          </script>
-      </body>
-      </html>' > /var/www/html/index.html
+            // Load quotes when page loads
+            loadQuotes();
+        </script>
+    </body>
+    </html>' > /var/www/html/index.html
 
     # Start and enable Nginx
     sudo systemctl start nginx
