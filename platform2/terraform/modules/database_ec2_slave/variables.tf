@@ -31,3 +31,8 @@ variable "db_instance_name" {
   type        = string
   default     = "db-instance-slave"
 }
+
+variable "region" {
+  type = string
+  default = "eu-west-3"
+}

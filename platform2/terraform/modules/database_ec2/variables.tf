@@ -27,3 +27,12 @@ variable "db_instance_name" {
   type        = string
   default     = "db-instance"
 }
+
+variable "master_eip_id" {
+  type = string
+}
+
+variable "region" {
+  type = string
+  default = "eu-west-3"
+}

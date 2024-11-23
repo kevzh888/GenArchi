@@ -67,12 +67,37 @@ module "app_asg" {
   public_subnet_id_1 = module.subnets.public_subnet_id_1
   public_subnet_id_2 = module.subnets.public_subnet_id_2
   app_sg_id         = module.security_groups.app_sg_id
-  db_ip_1           = module.database_ec2.db_instance_public_ip
-  db_ip_2           = module.database_ec2_slave.db_instance_public_ip
+  db_ip_1           = ""
+  db_ip_2           = ""
 }
 
 # --- Database EC2 Instance ---
-module "database_ec2" {
+
+module "database_eip" {
+  source = "./modules/database_eip"
+}
+
+module "database_nlb" {
+  source = "./modules/database_nlb"
+  vpc_id           = module.vpc.vpc_id
+  public_subnet_id_1 = module.subnets.public_subnet_id_1
+  public_subnet_id_2 = module.subnets.public_subnet_id_2
+  db_sg_id        = module.security_groups.db_sg_id
+}
+
+module "database_asg" {
+  source = "./modules/database_asg"
+  public_subnet_id_1 = module.subnets.public_subnet_id_1
+  public_subnet_id_2 = module.subnets.public_subnet_id_2
+  target_group_arn = module.database_nlb.db_target_group_arn
+  master_eip_id = module.database_eip.master_eip_id
+  master_eip_public_ip = module.database_eip.master_eip_public_ip
+  db_sg_id = module.security_groups.db_sg_id
+  aws_access_key = var.aws_access_key
+  aws_secret_key = var.aws_secret_key
+}
+
+/*module "database_ec2" {
   source            = "./modules/database_ec2"
   public_subnet_id  = module.subnets.public_subnet_id_1
   db_sg_id          = module.security_groups.db_sg_id
@@ -83,7 +108,7 @@ module "database_ec2_slave" {
   public_subnet_id  = module.subnets.public_subnet_id_2
   db_sg_id          = module.security_groups.db_sg_id
   master_public_ip = module.database_ec2.db_instance_public_ip
-}
+}*/
 
 /*module "static_site" {
   source = "./modules/s3_static_site"
