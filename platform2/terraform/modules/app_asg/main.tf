@@ -1,5 +1,3 @@
-//app_asg/main.tf
-
 resource "aws_launch_template" "app_launch_template" {
   name_prefix = "app-"
   image_id = var.app_ami_id
@@ -26,10 +24,6 @@ resource "aws_launch_template" "app_launch_template" {
     sudo apt-get update
     sudo apt-get install -y nginx nodejs npm
 
-    echo "DB_INSTANCE_1_IP='${var.db_ip_1}'" >> /etc/profile.d/db_env.sh
-    echo "DB_INSTANCE_2_IP='${var.db_ip_2}'" >> /etc/profile.d/db_env.sh
-    source /etc/profile.d/db_env.sh
-    
     # Create application directory
     sudo mkdir -p /var/www/app
     cd /var/www/app
@@ -38,33 +32,43 @@ resource "aws_launch_template" "app_launch_template" {
     npm init -y
     npm install express cors body-parser mysql2
     
-    # Create server.js
+    # Create server.js with updated database configuration
     cat > /var/www/app/server.js << 'ENDSERVER'
     const express = require("express");
     const cors = require("cors");
     const bodyParser = require("body-parser");
     const mysql = require("mysql2/promise");
-    const fs = require('fs');
     const app = express();
 
     app.use(cors());
     app.use(bodyParser.json());
 
     const dbConfig = {
-      host: 'localhost',
+      host: '${var.db_nlb_dns}',
       user: 'nodeapp',
       password: 'arcl',
-      database: 'quotes_db',
       waitForConnections: true,
       connectionLimit: 10,
-      queueLimit: 0
+      queueLimit: 0,
+      port: 3306
     };
 
+    // Create a pool without specifying the database
     const pool = mysql.createPool(dbConfig);
 
     async function initializeDb() {
+      let connection;
       try {
-        const connection = await pool.getConnection();
+        // Get a connection from the pool
+        connection = await pool.getConnection();
+        
+        // Create database if it doesn't exist
+        await connection.query('CREATE DATABASE IF NOT EXISTS quotes_db');
+        
+        // Use the quotes_db database
+        await connection.query('USE quotes_db');
+        
+        // Create quotes table if it doesn't exist
         await connection.query(`
           CREATE TABLE IF NOT EXISTS quotes (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -72,14 +76,36 @@ resource "aws_launch_template" "app_launch_template" {
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
           )
         `);
-        connection.release();
+        
         console.log('Database initialized successfully');
       } catch (error) {
         console.error('Error initializing database:', error);
+        throw error;
+      } finally {
+        if (connection) {
+          connection.release();
+        }
       }
     }
 
-    initializeDb();
+    // Create a new pool with the database specified after initialization
+    let dbPool;
+    
+    async function getPool() {
+      if (!dbPool) {
+        try {
+          await initializeDb();
+          dbPool = mysql.createPool({
+            ...dbConfig,
+            database: 'quotes_db'
+          });
+        } catch (error) {
+          console.error('Error creating database pool:', error);
+          throw error;
+        }
+      }
+      return dbPool;
+    }
 
     app.get("/api/test", (req, res) => {
       res.json({ message: "API is working!" });
@@ -87,6 +113,7 @@ resource "aws_launch_template" "app_launch_template" {
 
     app.get("/api/quotes", async (req, res) => {
       try {
+        const pool = await getPool();
         const [rows] = await pool.query('SELECT * FROM quotes ORDER BY created_at DESC');
         res.json(rows);
       } catch (error) {
@@ -103,6 +130,7 @@ resource "aws_launch_template" "app_launch_template" {
       }
 
       try {
+        const pool = await getPool();
         const [result] = await pool.query(
           'INSERT INTO quotes (text) VALUES (?)',
           [quote]
@@ -114,10 +142,19 @@ resource "aws_launch_template" "app_launch_template" {
       }
     });
 
-    const PORT = process.env.PORT || 3000;
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Server running on port` + PORT);
-    });
+    // Initialize the database and start the server
+    (async () => {
+      try {
+        await getPool();
+        const PORT = process.env.PORT || 3000;
+        app.listen(PORT, "0.0.0.0", () => {
+          console.log(`Server running on port ` + PORT);
+        });
+      } catch (error) {
+        console.error('Failed to initialize application:', error);
+        process.exit(1);
+      }
+    })();
     ENDSERVER
 
     # Set proper permissions

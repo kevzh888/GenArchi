@@ -67,6 +67,7 @@ module "app_asg" {
   public_subnet_id_1 = module.subnets.public_subnet_id_1
   public_subnet_id_2 = module.subnets.public_subnet_id_2
   app_sg_id         = module.security_groups.app_sg_id
+  db_nlb_dns         = module.database_nlb.dns_name
   db_ip_1           = ""
   db_ip_2           = ""
 }

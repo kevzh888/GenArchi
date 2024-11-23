@@ -80,3 +80,8 @@ variable "target_group_arn" {
   description = "ARN of the target group for the application load balancer"
   type = string
 }
+
+variable "db_nlb_dns" {
+  description = "The DNS name of the database load balancer"
+  type = string
+}
