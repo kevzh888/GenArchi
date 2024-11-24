@@ -1,5 +1,5 @@
 // Define the S3 URL where the API Gateway URL is stored
-const s3Url = "https://pqvx9piydk.execute-api.eu-west-3.amazonaws.com/quotes";
+const s3Url = 'https://dh1cre1thf.execute-api.eu-west-3.amazonaws.com/quotes'
 
 async function init() {
   try {
