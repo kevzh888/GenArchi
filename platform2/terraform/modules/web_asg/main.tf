@@ -164,6 +164,40 @@ resource "aws_launch_template" "web_launch_template" {
     </body>
     </html>' > /var/www/html/index.html
 
+    # Créer le fichier pour stress tester l'app
+    cat > /usr/local/bin/stressTester.py << 'SCRIPT'
+    import concurrent.futures
+    import time
+    import math
+
+    def cpu_intensive_task(duration):
+      end_time = time.time() + duration
+      result = 0
+      while time.time() < end_time:
+        result += math.factorial(100)
+      return result
+
+    def stress_test(cpu_cores, duration):
+      print(f"Starting CPU stress test with {cpu_cores} cores for {duration} seconds...")
+      start_time = time.time()
+        
+      with concurrent.futures.ThreadPoolExecutor(max_workers=cpu_cores) as executor:
+        futures = [executor.submit(cpu_intensive_task, duration) for _ in range(cpu_cores)]
+        concurrent.futures.wait(futures)
+
+      elapsed_time = time.time() - start_time
+      print(f"Stress test completed in {elapsed_time:.2f} seconds.")
+
+    if __name__ == "__main__":
+      cpu_cores = int(input("Enter the number of CPU cores to stress: "))
+      duration = int(input("Enter the duration of the stress test in seconds: "))
+        
+      stress_test(cpu_cores, duration)
+    SCRIPT
+
+    # Make the stressTester.py file executable
+    chmod +x /usr/local/bin/stressTester.py
+    
     # Start and enable Nginx
     sudo systemctl start nginx
     sudo systemctl enable nginx
@@ -199,7 +233,7 @@ resource "aws_autoscaling_policy" "cpu_target_scaling" {
     predefined_metric_specification {
       predefined_metric_type = "ASGAverageCPUUtilization"
     }
-    target_value = 75.0
+    target_value = 30
   }
 }
 

@@ -2,21 +2,21 @@
   "app_url": {
     "sensitive": false,
     "type": "string",
-    "value": "http://app-lb-1733616782.eu-west-3.elb.amazonaws.com"
+    "value": "http://app-lb-1132123638.eu-west-3.elb.amazonaws.com"
   },
   "db_master_eip": {
     "sensitive": false,
     "type": "string",
-    "value": "13.38.225.20"
+    "value": "51.44.132.60"
   },
   "db_nlb_dns": {
     "sensitive": false,
     "type": "string",
-    "value": "database-nlb-10d6bf61c44b9a66.elb.eu-west-3.amazonaws.com"
+    "value": "database-nlb-8d128bba0ad8e70b.elb.eu-west-3.amazonaws.com"
   },
   "web_url": {
     "sensitive": false,
     "type": "string",
-    "value": "http://web-lb-750364580.eu-west-3.elb.amazonaws.com"
+    "value": "http://web-lb-1893177990.eu-west-3.elb.amazonaws.com"
   }
 }
