@@ -1,0 +1,22 @@
+{
+  "app_url": {
+    "sensitive": false,
+    "type": "string",
+    "value": "http://app-lb-1132123638.eu-west-3.elb.amazonaws.com"
+  },
+  "db_master_eip": {
+    "sensitive": false,
+    "type": "string",
+    "value": "51.44.132.60"
+  },
+  "db_nlb_dns": {
+    "sensitive": false,
+    "type": "string",
+    "value": "database-nlb-8d128bba0ad8e70b.elb.eu-west-3.amazonaws.com"
+  },
+  "web_url": {
+    "sensitive": false,
+    "type": "string",
+    "value": "http://web-lb-1893177990.eu-west-3.elb.amazonaws.com"
+  }
+}

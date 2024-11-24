@@ -1,0 +1,8 @@
+---
+- name: Setup MySQL on Shard Servers
+  hosts: db_shards
+  become: yes
+  roles:
+    - mysql
+  vars:
+    mysql_root_password: "{{ lookup('env', 'MYSQL_ROOT_PASSWORD') }}"

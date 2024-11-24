@@ -1,0 +1,9 @@
+---
+- name: Common configuration on all servers
+  hosts: all
+  become: yes
+  tasks:
+    - name: Update all packages
+      apt:
+        update_cache: yes
+        upgrade: dist
