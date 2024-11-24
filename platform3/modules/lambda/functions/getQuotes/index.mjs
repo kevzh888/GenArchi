@@ -18,9 +18,10 @@ export const handler = async (event) => {
     return {
       statusCode: 200,
       headers: {
+        "Content-Type": "application/json",
         "Access-Control-Allow-Headers": "Content-Type",
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
+        "Access-Control-Allow-Methods": "OPTIONS,GET",
       },
       body: JSON.stringify(data.Items), // Retourner les citations
     };
@@ -28,6 +29,12 @@ export const handler = async (event) => {
     console.error(error);
     return {
       statusCode: 500,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "OPTIONS,GET",
+      },
       body: JSON.stringify({ error: "Could not fetch quotes" }),
     };
   }
