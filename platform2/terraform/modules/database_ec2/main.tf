@@ -34,6 +34,11 @@ resource "aws_instance" "db_instance" {
               # Restart MySQL to apply the configuration
               sudo systemctl restart mysql
 
+               # Configure MySQL for remote access
+              sudo sed -i 's/bind-address.*/bind-address = 0.0.0.0/' /etc/mysql/mysql.conf.d/mysqld.cnf
+              sudo sed -i 's/mysqlx-bind-address.*/mysqlx-bind-address = 0.0.0.0/' /etc/mysql/mysql.conf.d/mysqld.cnf
+              
+
               # Set up the MySQL replication user
               mysql -u root <<EOL
               CREATE USER 'replicator'@'%' IDENTIFIED BY 'arcl';
@@ -45,3 +50,4 @@ resource "aws_instance" "db_instance" {
               mysql -u root -e "SHOW MASTER STATUS\G"
               EOF
 }
+

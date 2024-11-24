@@ -97,6 +97,54 @@ resource "aws_launch_template" "mysql_template" {
                 exit 1
               fi
 
+              echo "Checking if master is available with retries..."
+              RETRY_COUNT=3
+              RETRY_DELAY=2
+              ATTEMPT=0
+
+              if ! [ "$INSTANCE_INDEX" -gt 1 ]; then
+                  echo "First instance then no retries"
+                  RETRY_COUNT=1
+              fi
+              echo "Retry count: $RETRY_COUNT, Retry delay: $RETRY_DELAY"
+
+              while [ $ATTEMPT -lt $RETRY_COUNT ]; do
+                  if mysql -h ${var.master_eip_public_ip} -P 3306 -u replicator -parcl -e "SHOW MASTER STATUS\G" &>/dev/null; then
+                      echo "Master is available, retrieving replication log status..."
+                      MASTER_STATUS=$(mysql -h ${var.master_eip_public_ip} -P 3306 -u replicator -parcl -e "SHOW MASTER STATUS\G")
+                      MASTER_LOG_FILE=$(echo "$MASTER_STATUS" | grep 'File' | awk '{print $2}')
+                      MASTER_LOG_POS=$(echo "$MASTER_STATUS" | grep 'Position' | awk '{print $2}')
+
+                      echo "Exporting data from master and importing to slave..."
+
+                      # Créer un dump de la base de données sur le master
+                      mysqldump -h ${var.master_eip_public_ip} -P 3306 -u replicator -parcl --all-databases | mysql -u root -proot
+                      if [ $? -ne 0 ]; then
+                        echo "Failed to create database dump from master."
+                        exit 1
+                      fi
+
+                      echo "Data migration from master to slave completed successfully."
+                      break
+
+                  else
+                      echo "Master is not available, retrying in $RETRY_DELAY seconds... (Attempt $((ATTEMPT + 1))/$RETRY_COUNT)"
+                      ATTEMPT=$((ATTEMPT + 1))
+                      sleep $RETRY_DELAY
+                  fi
+              done
+
+              echo "All retries are finished"
+
+              if [ $ATTEMPT -eq $RETRY_COUNT ]; then
+                  echo "Failed to connect to master after $RETRY_COUNT attempts. Using default values..."
+                  MASTER_LOG_FILE="mysql-bin.000001"
+                  MASTER_LOG_POS=4
+              fi
+
+              echo "Master Log File: $MASTER_LOG_FILE"
+              echo "Master Log Position: $MASTER_LOG_POS"
+
               # Configurer MySQL pour la réplication
               echo "Configuring MySQL replication..."
               cat >> /etc/mysql/mysql.conf.d/mysqld.cnf <<EOL
@@ -121,20 +169,6 @@ resource "aws_launch_template" "mysql_template" {
                 sleep 1
               done
 
-              echo "Checking if master is available..."
-              if mysql -h ${var.master_eip_public_ip} -P 3306 -u replicator -parcl -e "SHOW MASTER STATUS\G" &>/dev/null; then
-                  echo "Master is available, retrieving replication log status..."
-                  MASTER_STATUS=$(mysql -h ${var.master_eip_public_ip} -P 3306 -u replicator -parcl -e "SHOW MASTER STATUS\G")
-                  MASTER_LOG_FILE=$(echo "$MASTER_STATUS" | grep 'File' | awk '{print $2}')
-                  MASTER_LOG_POS=$(echo "$MASTER_STATUS" | grep 'Position' | awk '{print $2}')
-              else
-                  echo "Master is not available, using default values..."
-                  MASTER_LOG_FILE="mysql-bin.000001"
-                  MASTER_LOG_POS=4
-              fi
-              echo "Master Log File: $MASTER_LOG_FILE"
-              echo "Master Log Position: $MASTER_LOG_POS"
-
               # Configurer la réplication
               echo "Setting up replication..."
 
@@ -145,7 +179,11 @@ resource "aws_launch_template" "mysql_template" {
               CREATE USER IF NOT EXISTS 'replicator'@'%' IDENTIFIED WITH mysql_native_password BY 'arcl';
 
               -- Accorder les privilèges REPLICATION SLAVE et REPLICATION CLIENT
-              GRANT REPLICATION CLIENT, REPLICATION SLAVE ON *.* TO 'replicator'@'%';
+              GRANT REPLICATION CLIENT, REPLICATION SLAVE, LOCK TABLES, SHOW VIEW, RELOAD, PROCESS, SELECT ON *.* TO 'replicator'@'%' WITH GRANT OPTION;
+
+              -- User nodeapp utilisé par le tier app
+              CREATE USER IF NOT EXISTS 'nodeapp'@'%'IDENTIFIED BY 'arcl';
+              GRANT ALL PRIVILEGES ON quotes_db.* TO 'nodeapp'@'%';
 
               -- Appliquer les changements de privilèges
               FLUSH PRIVILEGES;
