@@ -17,22 +17,37 @@ resource "aws_launch_template" "app_launch_template" {
   
   user_data = base64encode(<<-EOF
     #!/bin/bash
-    exec > /tmp/user-data.log 2>&1
-    set -x
-    
+    # Enable detailed logging
+    exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+    echo "Starting user data script execution..."
+
     # Update and install dependencies
+    echo "Updating system packages..."
     sudo apt-get update
-    sudo apt-get install -y nginx nodejs npm
+    sudo apt-get install -y curl
+    
+    # Install Node.js 20.x
+    echo "Installing Node.js..."
+    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+    sudo apt-get install -y nodejs nginx
+
+    # Verify installations
+    echo "Node.js version: $(node --version)"
+    echo "NPM version: $(npm --version)"
 
     # Create application directory
+    echo "Creating application directory..."
     sudo mkdir -p /var/www/app
     cd /var/www/app
     
     # Initialize npm and install dependencies
+    echo "Initializing npm project..."
     npm init -y
+    echo "Installing npm dependencies..."
     npm install express cors body-parser mysql2
-    
-    # Create server.js with updated database configuration
+
+    # Create server.js
+    echo "Creating server.js..."
     cat > /var/www/app/server.js << 'ENDSERVER'
     const express = require("express");
     const cors = require("cors");
@@ -40,8 +55,13 @@ resource "aws_launch_template" "app_launch_template" {
     const mysql = require("mysql2/promise");
     const app = express();
 
+    // Initialize server middleware
     app.use(cors());
     app.use(bodyParser.json());
+
+    // Global connection flag
+    let isDbInitialized = false;
+    let globalPool = null;
 
     const dbConfig = {
       host: '${var.db_nlb_dns}',
@@ -53,23 +73,50 @@ resource "aws_launch_template" "app_launch_template" {
       port: 3306
     };
 
-    // Create a pool without specifying the database
-    const pool = mysql.createPool(dbConfig);
+    // Retry helper function
+    async function retry(operation, retries = 5, delay = 2000) {
+      let lastError;
+      
+      for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+          return await operation();
+        } catch (error) {
+          lastError = error;
+          console.error(`Attempt failed:`, error.message);
+          
+          if (attempt < retries) {
+            console.log(`Waiting ...ms before next attempt...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            delay *= 1.5; // Increase delay for each retry
+          }
+        }
+      }
+      throw lastError;
+    }
 
-    async function initializeDb() {
-      let connection;
+    // Database initialization
+    async function initializeDatabase() {
+      if (isDbInitialized && globalPool) {
+        return globalPool;
+      }
+
+      console.log("Starting database initialization...");
+
       try {
-        // Get a connection from the pool
-        connection = await pool.getConnection();
+        // Create initial connection to MySQL server
+        const tempPool = mysql.createPool(dbConfig);
+        const conn = await tempPool.getConnection();
         
-        // Create database if it doesn't exist
-        await connection.query('CREATE DATABASE IF NOT EXISTS quotes_db');
+        console.log("Connected to MySQL server");
+
+        // Create and use the database
+        await conn.query('CREATE DATABASE IF NOT EXISTS quotes_db');
+        await conn.query('USE quotes_db');
         
-        // Use the quotes_db database
-        await connection.query('USE quotes_db');
-        
-        // Create quotes table if it doesn't exist
-        await connection.query(`
+        console.log("Created and selected quotes_db");
+
+        // Create quotes table
+        await conn.query(`
           CREATE TABLE IF NOT EXISTS quotes (
             id INT AUTO_INCREMENT PRIMARY KEY,
             text TEXT NOT NULL,
@@ -77,44 +124,65 @@ resource "aws_launch_template" "app_launch_template" {
           )
         `);
         
-        console.log('Database initialized successfully');
+        console.log("Quotes table created/verified");
+
+        // Release initial connection
+        conn.release();
+        await tempPool.end();
+
+        // Create the main connection pool with database selected
+        const mainPool = mysql.createPool({
+          ...dbConfig,
+          database: 'quotes_db',
+          multipleStatements: true
+        });
+
+        // Verify the main pool works
+        const testConn = await mainPool.getConnection();
+        await testConn.query('SELECT 1');
+        testConn.release();
+
+        globalPool = mainPool;
+        isDbInitialized = true;
+        console.log("Database initialization completed successfully");
+        
+        return mainPool;
       } catch (error) {
-        console.error('Error initializing database:', error);
+        console.error("Database initialization failed:", error);
         throw error;
-      } finally {
-        if (connection) {
-          connection.release();
-        }
       }
     }
 
-    // Create a new pool with the database specified after initialization
-    let dbPool;
-    
-    async function getPool() {
-      if (!dbPool) {
+    // Database middleware
+    async function ensureDatabase(req, res, next) {
+      if (!isDbInitialized || !globalPool) {
         try {
-          await initializeDb();
-          dbPool = mysql.createPool({
-            ...dbConfig,
-            database: 'quotes_db'
-          });
+          await retry(initializeDatabase);
         } catch (error) {
-          console.error('Error creating database pool:', error);
-          throw error;
+          console.error("Database initialization failed in middleware:", error);
+          return res.status(503).json({ 
+            error: 'Database connection not available',
+            details: error.message
+          });
         }
       }
-      return dbPool;
+      next();
     }
 
-    app.get("/api/test", (req, res) => {
-      res.json({ message: "API is working!" });
+    // Apply database middleware to all routes
+    app.use(ensureDatabase);
+
+    // Routes
+    app.get("/api/health", (req, res) => {
+      res.json({ 
+        status: "healthy",
+        dbInitialized: isDbInitialized
+      });
     });
 
     app.get("/api/quotes", async (req, res) => {
       try {
-        const pool = await getPool();
-        const [rows] = await pool.query('SELECT * FROM quotes ORDER BY created_at DESC');
+        const [rows] = await globalPool.query('SELECT * FROM quotes ORDER BY created_at DESC');
         res.json(rows);
       } catch (error) {
         console.error('Error fetching quotes:', error);
@@ -130,11 +198,12 @@ resource "aws_launch_template" "app_launch_template" {
       }
 
       try {
-        const pool = await getPool();
-        const [result] = await pool.query(
+        const [result] = await globalPool.query(
           'INSERT INTO quotes (text) VALUES (?)',
           [quote]
         );
+        
+        console.log('Quote added successfully:', { id: result.insertId, text: quote });
         res.status(201).json({ id: result.insertId, text: quote });
       } catch (error) {
         console.error('Error adding quote:', error);
@@ -142,25 +211,38 @@ resource "aws_launch_template" "app_launch_template" {
       }
     });
 
-    // Initialize the database and start the server
+    // Graceful shutdown
+    process.on('SIGTERM', async () => {
+      console.log('SIGTERM received. Closing connections...');
+      if (globalPool) {
+        await globalPool.end();
+      }
+      process.exit(0);
+    });
+
+    // Start server
     (async () => {
       try {
-        await getPool();
+        // Initialize database with retries
+        await retry(initializeDatabase);
+        
         const PORT = process.env.PORT || 3000;
         app.listen(PORT, "0.0.0.0", () => {
-          console.log(`Server running on port ` + PORT);
+          console.log(`Server running on port` + PORT);
         });
       } catch (error) {
-        console.error('Failed to initialize application:', error);
+        console.error('Failed to start server:', error);
         process.exit(1);
       }
     })();
     ENDSERVER
 
     # Set proper permissions
+    echo "Setting permissions..."
     sudo chown -R ubuntu:ubuntu /var/www/app
     
     # Create systemd service
+    echo "Creating systemd service..."
     cat > /etc/systemd/system/nodeapp.service << 'ENDSERVICE'
     [Unit]
     Description=Node.js Quote Application
@@ -172,13 +254,21 @@ resource "aws_launch_template" "app_launch_template" {
     WorkingDirectory=/var/www/app
     ExecStart=/usr/bin/node server.js
     Restart=always
+    RestartSec=10
+    StandardOutput=append:/var/log/nodeapp.log
+    StandardError=append:/var/log/nodeapp.error.log
     Environment=NODE_ENV=production
 
     [Install]
     WantedBy=multi-user.target
     ENDSERVICE
 
+    # Create log files
+    sudo touch /var/log/nodeapp.log /var/log/nodeapp.error.log
+    sudo chown ubuntu:ubuntu /var/log/nodeapp.log /var/log/nodeapp.error.log
+    
     # Configure Nginx
+    echo "Configuring Nginx..."
     cat > /etc/nginx/sites-available/default << 'ENDNGINX'
     server {
         listen 80;
@@ -190,52 +280,35 @@ resource "aws_launch_template" "app_launch_template" {
             proxy_set_header Upgrade \$http_upgrade;
             proxy_set_header Connection "upgrade";
             proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+            
+            # Add timeouts
+            proxy_connect_timeout 60s;
+            proxy_send_timeout 60s;
+            proxy_read_timeout 60s;
+        }
+        
+        # Add health check location
+        location /health {
+            proxy_pass http://localhost:3000/api/health;
         }
     }
     ENDNGINX
 
-    # Start services
+    # Enable and start services
+    echo "Starting services..."
     sudo systemctl daemon-reload
     sudo systemctl enable nodeapp
     sudo systemctl start nodeapp
     sudo systemctl restart nginx
 
-    # Créer le fichier pour stress tester l'app
-    cat > /usr/local/bin/stressTester.py << 'SCRIPT'
-    import concurrent.futures
-    import time
-    import math
-
-    def cpu_intensive_task(duration):
-      end_time = time.time() + duration
-      result = 0
-      while time.time() < end_time:
-        result += math.factorial(100)
-      return result
-
-    def stress_test(cpu_cores, duration):
-      print(f"Starting CPU stress test with {cpu_cores} cores for {duration} seconds...")
-      start_time = time.time()
-        
-      with concurrent.futures.ThreadPoolExecutor(max_workers=cpu_cores) as executor:
-        futures = [executor.submit(cpu_intensive_task, duration) for _ in range(cpu_cores)]
-        concurrent.futures.wait(futures)
-
-      elapsed_time = time.time() - start_time
-      print(f"Stress test completed in {elapsed_time:.2f} seconds.")
-
-    if __name__ == "__main__":
-      cpu_cores = int(input("Enter the number of CPU cores to stress: "))
-      duration = int(input("Enter the duration of the stress test in seconds: "))
-        
-      stress_test(cpu_cores, duration)
-    SCRIPT
-
-    # Make the stressTester.py file executable
-    chmod +x /usr/local/bin/stressTester.py
+    # Verify services
+    echo "Verifying services..."
+    sudo systemctl status nodeapp
+    sudo systemctl status nginx
     
-    # Log completion
-    echo "Installation completed" > /tmp/installation-complete.log
+    echo "Installation completed successfully"
     EOF
   )
 }
@@ -272,6 +345,7 @@ resource "aws_autoscaling_policy" "app_cpu_policy" {
     predefined_metric_specification {
       predefined_metric_type = "ASGAverageCPUUtilization"
     }
-    target_value = 30
+    target_value = var.app_cpu_target_value
   }
 }
+
