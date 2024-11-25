@@ -263,7 +263,7 @@ resource "aws_autoscaling_group" "mysql_asg" {
   desired_capacity    = var.desired_capacity - 1
   max_size           = var.max_size
   min_size           = var.min_size
-  vpc_zone_identifier = [var.public_subnet_id_1, var.public_subnet_id_2]
+  vpc_zone_identifier = count.index == 0 ? [var.public_subnet_id_1, var.public_subnet_id_2] : [var.public_subnet_id_2, var.public_subnet_id_1]
   target_group_arns  = [var.target_group_arn]
 
   launch_template {
