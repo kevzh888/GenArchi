@@ -23,7 +23,6 @@ resource "aws_s3_bucket_public_access_block" "website_bucket_public_access_block
   restrict_public_buckets = var.var_restrict_public_buckets
 }
 
-
 # Set the ACL for the S3 bucket
 resource "aws_s3_bucket_acl" "website_bucket_acl" {
   depends_on = [
@@ -35,7 +34,34 @@ resource "aws_s3_bucket_acl" "website_bucket_acl" {
   acl    = var.var_bucket_acl
 }
 
+resource "aws_s3_bucket_cors_configuration" "website_bucket_cors" {
+  bucket = aws_s3_bucket.website_bucket.id
 
+  cors_rule {
+    allowed_methods = [
+      "GET",
+      "POST",
+      "PUT",
+      "DELETE",
+      "HEAD",
+    ]
+    allowed_origins = [
+      "*",
+      "",
+      "https://ga-s3bucket-quotes-app.s3.eu-west-3.amazonaws.com/",
+    ]
+    allowed_headers = [
+      "",
+      "*",  
+    ]
+    expose_headers = [
+      "ETag",
+      "x-amz-request-id",
+    ]
+
+    max_age_seconds = 3000  # Optional: cache preflight response for this long
+  }
+}
 
 # Configure the S3 bucket to host a static website
 resource "aws_s3_bucket_website_configuration" "example" {
@@ -49,8 +75,6 @@ resource "aws_s3_bucket_website_configuration" "example" {
     key = var.var_error_document_key
   }
 }
-
-
 
 resource "aws_s3_bucket_policy" "allow_public_access" {
    depends_on = [

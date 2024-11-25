@@ -1,13 +1,3 @@
-# S3 bucket
-module "s3bucket" {
-  source = "./modules/s3bucket"
-
-  var_s3_bucket_name = "ga-s3bucket-quotes-app"
-  var_object_ownership = "BucketOwnerPreferred"
-  var_bucket_acl = "public-read"
-  var_website_assets_dir = "./assets"
-}
-
 # DynamoDB table
 module "dynamodb" {
   source = "./modules/dynamodb"
@@ -34,4 +24,33 @@ module "apigateway" {
   var_lambda_create_quote_arn = module.lambda.create_quote_lambda_arn
   var_lambda_get_quotes_invoke_arn = module.lambda.get_quotes_lambda_invoke_arn
   var_lambda_create_quote_invoke_arn = module.lambda.create_quote_lambda_invoke_arn
+}
+
+# null resource to fetch API Gateway URL and write to script
+resource "null_resource" "api_gateway_url" {
+  provisioner "local-exec" {
+    command = "./scripts/get_api_url.sh ./assets/script.js ${module.apigateway.api_gateway_url}"
+    interpreter = ["bash", "-c"]
+  }
+
+  depends_on = [module.apigateway]
+}
+
+# S3 bucket module without direct dependency on null_resource
+module "s3bucket" {
+  source = "./modules/s3bucket"
+
+  var_s3_bucket_name = "ga-s3bucket-quotes-app"
+  var_object_ownership = "BucketOwnerPreferred"
+  var_bucket_acl = "public-read"
+  var_website_assets_dir = "./assets"
+}
+
+# Upload modified script.js to S3 after the API Gateway URL is written
+resource "aws_s3_object" "updated_script" {
+  bucket = "ga-s3bucket-quotes-app"
+  key    = "script.js"
+  source = "./assets/script.js"
+
+  depends_on = [null_resource.api_gateway_url]
 }
