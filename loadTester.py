@@ -2,15 +2,29 @@ import requests
 import json
 import time
 import threading
+from concurrent.futures import ThreadPoolExecutor
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
-def send_request(endpoint, body):
+def create_session():
+    session = requests.Session()
+    retry_strategy = Retry(
+        total=3,
+        backoff_factor=0.1,
+        status_forcelist=[500, 502, 503, 504]
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=50, pool_maxsize=50)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
+
+def send_request(session, endpoint, body):
     try:
         headers = {'Content-Type': 'application/json'}
         if body:
-            response = requests.post(endpoint, data=json.dumps(body), headers=headers)
+            response = session.post(endpoint, json=body, headers=headers)
         else:
-            response = requests.get(endpoint, headers=headers)
-        
+            response = session.get(endpoint, headers=headers)
         print(f"Response Code: {response.status_code}, Response Body: {response.text}")
     except Exception as e:
         print(f"Error: {e}")
@@ -20,27 +34,20 @@ def load_test(endpoint, num_requests, duration, body=None):
         body = json.loads(body)
     
     interval = duration / num_requests
-
     print(f"Starting load test: {num_requests} requests over {duration} seconds.")
     
-    threads = []
-
-    for i in range(num_requests):
-        thread = threading.Thread(target=send_request, args=(endpoint, body))
-        threads.append(thread)
-        thread.start()
-        time.sleep(interval)
-    
-    for thread in threads:
-        thread.join()
+    session = create_session()
+    with ThreadPoolExecutor(max_workers=num_requests) as executor:
+        for _ in range(num_requests):
+            executor.submit(send_request, session, endpoint, body)
+            time.sleep(interval)
     
     print("Load test completed.")
 
 if __name__ == "__main__":
-    endpoint = input("Endpoint à atteindre: ")
+    endpoint = "http://" + input("Endpoint à atteindre: ") + "/api/quotes"
     num_requests = int(input("Nombre de requêtes: "))
     duration = int(input("Durée totale d'exécution: "))
-    body = input("Body JSON de la requête (laisser vide si GET): ")
+    body = "{\"quote\": " + "\"" + input("Body JSON de la requête (laisser vide si GET): ") + "\"}"
     body = body if body.strip() else None
-
     load_test(endpoint, num_requests, duration, body)
